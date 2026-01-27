@@ -1,0 +1,27 @@
+[package]
+name = "oil-api"
+version = "0.6.5"
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://oil.supply"
+description = "API for interacting with the OIL protocol on Solana"
+documentation = "https://docs.rs/oil-api"
+repository = "https://github.com/oil-protocol/oil"
+readme = "README.md"
+keywords = ["solana", "oil", "blockchain", "defi"]
+publish = true
+
+[dependencies]
+base64 = "0.22.1"
+bytemuck = "1.14.3"
+const-crypto = "0.1.0"
+entropy-rng-api = "0.1.1"
+num_enum = "0.7.2"
+oil-mint-api = "0.1.9"
+serde = { version = "1.0", features = ["derive"] }
+solana-program = "^2.1"
+spl-token = { version = "^4", features = ["no-entrypoint"] }
+spl-token-2022 = "^7"
+spl-associated-token-account = { version = "^6", features = ["no-entrypoint"] }
+steel = { version = "4.0.4", features = ["spl"] }
+thiserror = "1.0.57"
