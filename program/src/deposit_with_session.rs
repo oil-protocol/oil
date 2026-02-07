@@ -1,12 +1,11 @@
 use oil_api::prelude::*;
-use solana_program::program::invoke;
+use oil_api::fogo;
 use solana_program::log::sol_log;
-use spl_token::instruction::transfer;
 use spl_token::amount_to_ui_amount;
 use steel::*;
 
 /// Deposits OIL into the staking contract. Stakers earn SOL rewards from protocol revenue (2% of round winnings).
-pub fn process_deposit(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
+pub fn process_deposit_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: &[u8]) -> ProgramResult {
     let args = Deposit::try_from_bytes(data)?;
     let amount = u64::from_le_bytes(args.amount);
     let lock_duration_days = u64::from_le_bytes(args.lock_duration_days);
@@ -18,23 +17,26 @@ pub fn process_deposit(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResu
 
     let clock = Clock::get()?;
     
-    let [signer_info, payer_info, mint_info, sender_info, stake_info, stake_tokens_info, pool_info, pool_tokens_info, miner_info, system_program, token_program, associated_token_program] =
+    let [signer_info, authority_info, program_signer_info, payer_info, mint_info, sender_info, stake_info, stake_tokens_info, pool_info, pool_tokens_info, miner_info, system_program, token_program, associated_token_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     
     signer_info.is_signer()?;
-    payer_info.is_signer()?;
     
-    let authority = *signer_info.key;
+    fogo::validate_session(signer_info)?;
+    fogo::validate_program_signer(program_signer_info)?;
     
-    // Validate mint
+    let authority = *authority_info.key;
+    
+    let user = authority;
+    
     mint_info.has_address(&MINT_ADDRESS)?.as_mint()?;
     
     let sender = sender_info
         .is_writable()?
-        .as_associated_token_account(&signer_info.key, &MINT_ADDRESS)?;
+        .as_associated_token_account(&user, &MINT_ADDRESS)?;
     
     stake_info.is_writable()?;
     miner_info.is_writable()?;
@@ -59,7 +61,6 @@ pub fn process_deposit(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResu
         stake.authority = authority;
         stake.balance = 0;
         stake.lock_duration_days = lock_duration_days;
-        // Calculate lock_ends_at: current timestamp + (lock_duration_days * 86400 seconds)
         stake.lock_ends_at = if lock_duration_days > 0 {
             (clock.unix_timestamp as u64) + (lock_duration_days * 86400)
         } else {
@@ -77,24 +78,18 @@ pub fn process_deposit(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResu
         stake.buffer_f = 0;
         stake
     } else {
-        // Existing stake account
         let stake = stake_info
             .as_account_mut::<Stake>(&oil_api::ID)?
             .assert_mut(|s| s.authority == authority)?;
         
-        // Check if lock_duration_days matches existing stake
         if stake.lock_duration_days > 0 && lock_duration_days != stake.lock_duration_days {
             return Err(ProgramError::InvalidArgument);
         }
-        // If stake has no lock (lock_duration_days == 0) and user wants to set a lock, allow it
         if stake.lock_duration_days == 0 && lock_duration_days > 0 {
-            // Setting lock for the first time on existing stake
             stake.lock_duration_days = lock_duration_days;
             stake.lock_ends_at = (clock.unix_timestamp as u64) + (lock_duration_days * 86400);
         }
-        // If stake has a lock and user deposits more, reset the lock timer (like macaron.bid)
         if stake.lock_duration_days > 0 && lock_duration_days == stake.lock_duration_days {
-            // Reset lock timer when depositing more into existing locked stake
             stake.lock_ends_at = (clock.unix_timestamp as u64) + (lock_duration_days * 86400);
         }
         
@@ -138,26 +133,16 @@ pub fn process_deposit(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResu
         }
     }
 
-    let transfer_ix = transfer(
-        token_program.key,
-        sender_info.key,
-        pool_tokens_info.key,
-        signer_info.key,
-        &[],
+    fogo::transfer_token_with_program_signer(
+        token_program,
+        sender_info,
+        mint_info,
+        pool_tokens_info,
+        signer_info,
+        program_signer_info,
         amount,
     )?;
-    
-    invoke(
-        &transfer_ix,
-        &[
-            signer_info.clone(),
-            sender_info.clone(),
-            pool_tokens_info.clone(),
-            token_program.clone(),
-        ],
-    )?;
 
-    // Safety check: Verify pool has enough tokens to cover all stakes.
     let pool_tokens = pool_tokens_info.as_associated_token_account(pool_info.key, mint_info.key)?;
     assert!(
         pool_tokens.amount() >= pool.total_staked,

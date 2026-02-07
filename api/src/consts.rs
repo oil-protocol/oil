@@ -23,6 +23,10 @@ pub const ONE_DAY: i64 = 24 * ONE_HOUR;
 /// The number of seconds for when the winning square expires.
 pub const ONE_WEEK: i64 = 7 * ONE_DAY;
 
+/// The duration of one slot in milliseconds.
+/// Fogo has ~40ms slots (10x faster than Solana's ~400ms slots)
+pub const SLOT_DURATION_MS: u64 = 40;
+
 /// The number of slots in one minute.
 /// Fogo has ~40ms slots, so 60 seconds = 1500 slots (60 / 0.04 = 1500)
 pub const ONE_MINUTE_SLOTS: u64 = 1500;

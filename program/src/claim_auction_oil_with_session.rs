@@ -1,38 +1,41 @@
 use oil_api::prelude::*;
+use oil_api::fogo;
 use solana_program::log::sol_log;
 use spl_token::amount_to_ui_amount;
 use steel::*;
 
-/// Claim auction-based OIL rewards
-pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
+/// Claim auction-based OIL rewards (FOGO session)
+pub fn process_claim_auction_oil_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: &[u8]) -> ProgramResult {
     let clock = Clock::get()?;
     let args = ClaimAuctionOIL::try_from_bytes(data)?;
-    let well_mask = args.well_mask; // Which wells to claim OIL from (0-3)
+    let well_mask = args.well_mask;
 
-    // Minimum accounts required (without referral)
-    if accounts.len() < 18 {
+    if accounts.len() < 19 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    // Destructure base accounts
-    let [signer_info, miner_info, well_0_info, well_1_info, well_2_info, well_3_info, auction_info, treasury_info, treasury_tokens_info, mint_info, mint_authority_info, mint_program, recipient_info, token_program, associated_token_program, system_program, oil_program] =
-        &accounts[0..17]
+    let [program_signer_info, payer_info, authority_info, miner_info, well_0_info, well_1_info, well_2_info, well_3_info, auction_info, treasury_info, treasury_tokens_info, mint_info, mint_authority_info, mint_program, recipient_info, token_program, associated_token_program, system_program, oil_program] =
+        &accounts[0..19]
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    signer_info.is_signer()?;
+    program_signer_info.is_signer()?;
+    payer_info.is_signer()?;
+    
+    fogo::validate_program_signer(program_signer_info)?;
+    
+    let authority = *authority_info.key;
     
     let miner = miner_info
         .as_account_mut::<Miner>(&oil_api::ID)?
-        .assert_mut(|d| d.authority == *signer_info.key)?;
+        .assert_mut(|d| d.authority == authority)?;
     
-    // Cooldown check: prevent spam claims
     if miner.last_claim_auction_oil_at > 0 {
         let time_since_last_claim = clock.unix_timestamp.saturating_sub(miner.last_claim_auction_oil_at);
         if time_since_last_claim < oil_api::consts::CLAIM_AUCTION_OIL_COOLDOWN_SECONDS {
             sol_log("Claim cooldown: Please wait before claiming again");
-            return Err(ProgramError::Custom(6000)); // Custom error code for claim cooldown
+            return Err(ProgramError::Custom(6000));
         }
     }
     
@@ -48,11 +51,10 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
     system_program.is_program(&system_program::ID)?;
     oil_program.is_program(&oil_api::ID)?;
 
-    // Create recipient OIL ATA if it doesn't exist
     if recipient_info.data_is_empty() {
         create_associated_token_account(
-            signer_info,
-            signer_info,
+            payer_info,
+            authority_info,
             recipient_info,
             mint_info,
             system_program,
@@ -60,12 +62,11 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
             associated_token_program,
         )?;
     } else {
-        recipient_info.as_associated_token_account(signer_info.key, mint_info.key)?;
+        recipient_info.as_associated_token_account(authority_info.key, mint_info.key)?;
     }
 
     miner.update_auction_rewards(treasury);
     
-    // Start with OIL from previous ownership (already pre-minted and in miner.auction_rewards_oil)
     let mut total_auction_oil = miner.auction_rewards_oil + miner.auction_refined_oil;
 
     let well_accounts = [well_0_info, well_1_info, well_2_info, well_3_info];
@@ -75,7 +76,6 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
             continue;
         }
 
-        // Load well state for this well using destructured accounts
         let well_info = well_accounts[well_id];
         
         let well_id_u64: u64 = well_id.try_into().unwrap_or(0);
@@ -84,15 +84,12 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
             .has_seeds(&[WELL, &well_id_u64.to_le_bytes()], &oil_api::ID)?
             .as_account_mut::<Well>(&oil_api::ID)?;
 
-        // Update accumulated OIL
         well.update_accumulated_oil(&clock);
         well.check_and_apply_halving(auction, &clock);
 
-        // Only solo owners can claim
-        let is_solo_owner = well.current_bidder == *signer_info.key;
+        let is_solo_owner = well.current_bidder == authority;
 
         if is_solo_owner {
-            // Solo owner: get full accumulated OIL
             let accumulated_oil = well.accumulated_oil;
             total_auction_oil += accumulated_oil;
             well.accumulated_oil = 0;
@@ -100,17 +97,14 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
         }
     }
 
-    // Process OIL rewards if any
     let mut signer_amount = 0u64;
     let mut refining_fee = 0u64;
     if total_auction_oil > 0 {
         let mut claimable_oil;
-        // Mint OIL on-demand for current ownership (OIL from previous ownership was already pre-minted)
         let pre_minted_oil = miner.auction_rewards_oil;
         let current_ownership_oil = total_auction_oil.saturating_sub(pre_minted_oil);
         
         if current_ownership_oil > 0 {
-            // Mint OIL on-demand for current ownership
             invoke_signed(
                 &oil_mint_api::sdk::mint_oil(current_ownership_oil),
                 &[
@@ -127,7 +121,6 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
             treasury.auction_total_unclaimed += current_ownership_oil;
         }
 
-        // Apply refining fees (10% fee, shared with other auction miners)
         claimable_oil = total_auction_oil;
         if treasury.auction_total_unclaimed > 0 && total_auction_oil > 0 {
             refining_fee = total_auction_oil / 10;
@@ -139,7 +132,6 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
         treasury.auction_total_unclaimed = treasury.auction_total_unclaimed.saturating_sub(total_auction_oil);
         treasury.auction_total_refined = treasury.auction_total_refined.saturating_sub(miner.auction_refined_oil);
 
-        // Update lifetime stats
         miner.lifetime_rewards_oil += total_auction_oil;
 
         miner.auction_rewards_oil = 0;
@@ -149,16 +141,16 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
         miner.auction_rewards_factor = treasury.auction_rewards_factor;
 
         let referral_amount = if miner.referrer != Pubkey::default() {
-            if accounts.len() < 19 {
+            if accounts.len() < 22 {
                 return Err(ProgramError::NotEnoughAccountKeys);
             }
             
-            let miner_referrer_idx = 17;
+            let miner_referrer_idx = 19;
             let miner_referrer_info = &accounts[miner_referrer_idx];
             miner_referrer_info
                 .has_seeds(&[MINER, &miner.referrer.to_bytes()], &oil_api::ID)?;
             
-            let referral_referrer_idx = 18;
+            let referral_referrer_idx = 20;
             let referral_referrer_info = &accounts[referral_referrer_idx];
             referral_referrer_info
                 .has_seeds(&[REFERRAL, &miner.referrer.to_bytes()], &oil_api::ID)?;
@@ -173,7 +165,6 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
 
         signer_amount = claimable_oil.saturating_sub(referral_amount);
 
-        // Transfer only the user's portion to recipient (authority's ATA)
         if signer_amount > 0 {
             transfer_signed(
                 treasury_info,
@@ -185,15 +176,13 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
             )?;
         }
         
-        // Transfer referral OIL directly to referral account's OIL ATA
         if referral_amount > 0 {
-            let referral_referrer_info = &accounts[18];
-            let referral_referrer_oil_ata_info = &accounts[19];
+            let referral_referrer_info = &accounts[20];
+            let referral_referrer_oil_ata_info = &accounts[21];
                         
-            // Create referral OIL ATA if it doesn't exist
             if referral_referrer_oil_ata_info.data_is_empty() {
                 create_associated_token_account(
-                    signer_info,
+                    payer_info,
                     referral_referrer_info,
                     referral_referrer_oil_ata_info,
                     mint_info,
@@ -205,7 +194,6 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
                 referral_referrer_oil_ata_info.as_associated_token_account(referral_referrer_info.key, mint_info.key)?;
             }
                         
-            // Transfer OIL from treasury to referral account's OIL ATA
             transfer_signed(
                 treasury_info,
                 treasury_tokens_info,
@@ -223,12 +211,11 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
         }
     }
 
-    // Emit event
     auction_program_log(
         &[auction_info.clone(), oil_program.clone()],
         ClaimAuctionOILEvent {
             disc: 6,
-            authority: *signer_info.key,
+            authority: authority,
             oil_claimed: signer_amount,
             refining_fee,
             ts: clock.unix_timestamp as u64,
@@ -245,4 +232,3 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
 
     Ok(())
 }
-

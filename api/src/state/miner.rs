@@ -84,7 +84,7 @@ pub struct Miner {
     pub total_stake_score: u64,
 
     pub is_seeker: u64,
-
+    /// XP system (future development)
     pub buffer_a: u64,
 }
 

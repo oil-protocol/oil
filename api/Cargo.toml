@@ -1,6 +1,6 @@
 [package]
 name = "oil-api"
-version = "0.6.5"
+version = "0.7.0"
 edition = "2021"
 license = "Apache-2.0"
 homepage = "https://oil.supply"
@@ -25,3 +25,4 @@ spl-token-2022 = "^7"
 spl-associated-token-account = { version = "^6", features = ["no-entrypoint"] }
 steel = { version = "4.0.4", features = ["spl"] }
 thiserror = "1.0.57"
+fogo-sessions-sdk = { workspace = true }

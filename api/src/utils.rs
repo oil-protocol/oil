@@ -85,3 +85,22 @@ pub fn create_or_validate_wrapped_sol_ata<'a>(
 pub fn is_premine_active(config: &Config, clock: &Clock) -> bool {
     config.tge_timestamp > 0 && clock.unix_timestamp < config.tge_timestamp
 }
+
+/// Generates a random mask of 25 squares based on a random seed.
+/// 
+/// Uses reservoir sampling algorithm to randomly select `num_squares` squares
+/// from 25 possible positions based on the provided random bytes `r`.
+pub fn generate_random_mask(num_squares: u64, r: &[u8]) -> [bool; 25] {
+    let mut new_mask = [false; 25];
+    let mut selected = 0;
+    for i in 0..25 {
+        let rand_byte = r[i];
+        let remaining_needed = num_squares - selected;
+        let remaining_positions = 25 - i;
+        if remaining_needed > 0 && (rand_byte as u64) * (remaining_positions as u64) < (remaining_needed * 256) {
+            new_mask[i] = true;
+            selected += 1;
+        }
+    }
+    new_mask
+}

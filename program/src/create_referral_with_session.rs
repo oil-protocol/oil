@@ -1,16 +1,19 @@
 use oil_api::prelude::*;
+use oil_api::fogo;
 use solana_program::log::sol_log;
 use steel::*;
 
-/// Creates a referral account for a user to become a referrer.
-pub fn process_create_referral(accounts: &[AccountInfo<'_>], _data: &[u8]) -> ProgramResult {
-    let [signer_info, payer_info, referral_info, system_program] = accounts else {
+/// Creates a referral account for a user to become a referrer (FOGO session).
+pub fn process_create_referral_with_session<'a>(accounts: &'a [AccountInfo<'a>], _data: &[u8]) -> ProgramResult {
+    let [signer_info, authority_info, program_signer_info, payer_info, referral_info, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     signer_info.is_signer()?;
-    payer_info.is_signer()?;
     
-    let authority = *signer_info.key;
+    fogo::validate_session(signer_info)?;
+    fogo::validate_program_signer(program_signer_info)?;
+    
+    let authority = *authority_info.key;
     
     referral_info
         .is_writable()?
@@ -40,4 +43,3 @@ pub fn process_create_referral(accounts: &[AccountInfo<'_>], _data: &[u8]) -> Pr
 
     Ok(())
 }
-

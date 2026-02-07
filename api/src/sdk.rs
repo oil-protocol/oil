@@ -32,7 +32,6 @@ pub fn auction_program_log(accounts: &[AccountInfo], msg: &[u8]) -> Result<(), P
 }
 
 // let [signer_info, board_info, config_info, mint_info, treasury_info, treasury_tokens_info, system_program, token_program, associated_token_program] = accounts else {
-
 // pub fn initialize(
 //     signer: Pubkey,
 //     barrel_authority: Pubkey,
@@ -229,14 +228,11 @@ pub fn close(signer: Pubkey, round_id: u64, rent_payer: Pubkey) -> Instruction {
     }
 }
 
-/// Deploy SOL to prospect on squares (for FOGO sessions or regular wallets with wrapped SOL).
+/// Deploy SOL to prospect on squares.
 /// 
-/// This function includes wrapped SOL ATAs and is used for:
-/// - FOGO sessions (signer != authority, with wrapped SOL transfers)
-/// - Regular wallets using wrapped SOL
-/// 
-/// For automations (bot-executed deploys using native SOL from automation account balance),
-/// use `deploy_auto` instead.
+/// This function uses native SOL transfers and is used for:
+/// - Regular wallets (signer == authority)
+/// - Automations (bot-executed deploys, signer != authority, using native SOL from automation account balance)
 /// 
 /// Pass a referrer pubkey for new miners to set up referral.
 /// Set `pooled` to true to join the mining pool (rewards shared proportionally).
@@ -251,13 +247,10 @@ pub fn deploy(
 ) -> Instruction {
     let automation_address = automation_pda(authority).0;
     let board_address = board_pda().0;
-    let config_address = config_pda().0;
     let miner_address = miner_pda(authority).0;
     let round_address = round_pda(round_id).0;
     let entropy_var_address = entropy_rng_api::state::var_pda(board_address, 0).0;
 
-    // Convert array of 25 booleans into a 32-bit mask where each bit represents whether
-    // that square index is selected (1) or not (0)
     let mut mask: u32 = 0;
     for (i, &square) in squares.iter().enumerate() {
         if square {
@@ -265,38 +258,27 @@ pub fn deploy(
         }
     }
     
-    // Get referrer bytes (default to zero pubkey if no referrer).
     let referrer_pubkey = referrer.unwrap_or(Pubkey::default());
     let referrer_bytes = referrer_pubkey.to_bytes();
-
-    // Derive wrapped SOL ATAs
-    let user_wrapped_sol_ata = get_associated_token_address(&authority, &SOL_MINT);
-    let round_wrapped_sol_ata = get_associated_token_address(&round_address, &SOL_MINT);
+    // Match program logic: has_referrer = referrer != Pubkey::default() && referrer != authority
+    let has_referrer = referrer_pubkey != Pubkey::default() && referrer_pubkey != authority;
 
     // Build accounts list - must match program structure:
-    // Oil accounts: base (9) + token (5) + optional referral (1) = 14-15
+    // Oil accounts: base (8) + optional referral (1) = 8-9
     // Entropy accounts: var + program = 2 (always exactly 2)
     let mut accounts = vec![
-        // Base accounts (9)
         AccountMeta::new(signer, true), // 0: signer
         AccountMeta::new(authority, false), // 1: authority
         AccountMeta::new(automation_address, false), // 2: automation
         AccountMeta::new(board_address, false), // 3: board
-        AccountMeta::new_readonly(config_address, false), // 4: config
-        AccountMeta::new(miner_address, false), // 5: miner
-        AccountMeta::new(round_address, false), // 6: round
-        AccountMeta::new_readonly(system_program::ID, false), // 7: system_program
-        AccountMeta::new_readonly(crate::ID, false), // 8: oil_program
-        // Token accounts (5)
-        AccountMeta::new(user_wrapped_sol_ata, false), // 9: user_wrapped_sol
-        AccountMeta::new(round_wrapped_sol_ata, false), // 10: round_wrapped_sol
-        AccountMeta::new_readonly(spl_token::ID, false), // 11: token_program
-        AccountMeta::new_readonly(SOL_MINT, false), // 12: mint (SOL_MINT)
-        AccountMeta::new_readonly(spl_associated_token_account::ID, false), // 13: associated_token_program
+        AccountMeta::new(miner_address, false), // 4: miner
+        AccountMeta::new(round_address, false), // 5: round
+        AccountMeta::new_readonly(system_program::ID, false), // 6: system_program
+        AccountMeta::new_readonly(crate::ID, false), // 7: oil_program
     ];
     
-    // Add referral account if referrer is provided (in oil_accounts)
-    if referrer_pubkey != Pubkey::default() {
+    // Add referral account if referrer is provided and not equal to authority (matches program logic)
+    if has_referrer {
         let referral_address = referral_pda(referrer_pubkey).0;
         accounts.push(AccountMeta::new(referral_address, false)); // referral (optional, in oil_accounts)
     }
@@ -318,88 +300,6 @@ pub fn deploy(
     }
 }
 
-/// Deploy instruction for automations (omits wrapped token accounts since automation uses native SOL).
-/// 
-/// This function is used when:
-/// - Bot executor (signer) != user authority (automation pattern)
-/// - Automation account has native SOL balance to deploy
-/// - No wrapped SOL ATAs needed (uses native SOL directly)
-/// 
-/// Account structure: base (9) + token programs only (3) + optional referral (1) + optional whitelist (1) + entropy (2) = 12-16 accounts
-/// 
-/// For FOGO sessions or regular wallets with wrapped SOL, use `deploy` instead.
-pub fn deploy_auto(
-    signer: Pubkey,
-    authority: Pubkey,
-    amount: u64,
-    round_id: u64,
-    squares: [bool; 25],
-    referrer: Option<Pubkey>,
-    pooled: bool,
-) -> Instruction {
-    let automation_address = automation_pda(authority).0;
-    let board_address = board_pda().0;
-    let config_address = config_pda().0;
-    let miner_address = miner_pda(authority).0;
-    let round_address = round_pda(round_id).0;
-    let entropy_var_address = entropy_rng_api::state::var_pda(board_address, 0).0;
-
-    // Convert array of 25 booleans into a 32-bit mask where each bit represents whether
-    // that square index is selected (1) or not (0)
-    let mut mask: u32 = 0;
-    for (i, &square) in squares.iter().enumerate() {
-        if square {
-            mask |= 1 << i;
-        }
-    }
-    
-    // Get referrer bytes (default to zero pubkey if no referrer).
-    let referrer_pubkey = referrer.unwrap_or(Pubkey::default());
-    let referrer_bytes = referrer_pubkey.to_bytes();
-
-    // Build accounts list - for automation, omit wrapped token ATAs:
-    // Base (9) + token programs only (3) + optional referral (1) = 12-13
-    // Entropy accounts: var + program = 2 (always exactly 2)
-    // Note: Program allows 12 accounts even when signer != authority (automation pattern)
-    let mut accounts = vec![
-        // Base accounts (9)
-        AccountMeta::new(signer, true), // 0: signer
-        AccountMeta::new(authority, false), // 1: authority
-        AccountMeta::new(automation_address, false), // 2: automation
-        AccountMeta::new(board_address, false), // 3: board
-        AccountMeta::new_readonly(config_address, false), // 4: config
-        AccountMeta::new(miner_address, false), // 5: miner
-        AccountMeta::new(round_address, false), // 6: round
-        AccountMeta::new_readonly(system_program::ID, false), // 7: system_program
-        AccountMeta::new_readonly(crate::ID, false), // 8: oil_program
-        // Token programs only (3) - no ATAs for automation
-        AccountMeta::new_readonly(spl_token::ID, false), // 9: token_program
-        AccountMeta::new_readonly(SOL_MINT, false), // 10: mint (SOL_MINT)
-        AccountMeta::new_readonly(spl_associated_token_account::ID, false), // 11: associated_token_program
-    ];
-    
-    // Add referral account if referrer is provided (in oil_accounts)
-    if referrer_pubkey != Pubkey::default() {
-        let referral_address = referral_pda(referrer_pubkey).0;
-        accounts.push(AccountMeta::new(referral_address, false)); // referral (optional, in oil_accounts)
-    }
-    
-    // Entropy accounts (always exactly 2, come after all oil_accounts)
-    accounts.push(AccountMeta::new(entropy_var_address, false)); // entropy_var
-    accounts.push(AccountMeta::new_readonly(entropy_rng_api::ID, false)); // entropy_program
-
-    Instruction {
-        program_id: crate::ID,
-        accounts,
-        data: Deploy {
-            amount: amount.to_le_bytes(),
-            squares: mask.to_le_bytes(),
-            referrer: referrer_bytes,
-            pooled: if pooled { 1 } else { 0 },
-        }
-        .to_bytes(),
-    }
-}
 
 // let [pool, user_source_token, user_destination_token, a_vault, b_vault, a_token_vault, b_token_vault, a_vault_lp_mint, b_vault_lp_mint, a_vault_lp, b_vault_lp, protocol_token_fee, user_key, vault_program, token_program] =
 
@@ -563,8 +463,7 @@ pub fn checkpoint(signer: Pubkey, authority: Pubkey, round_id: u64) -> Instructi
     Instruction {
         program_id: crate::ID,
         accounts: vec![
-            AccountMeta::new(signer, true), // payer (session payer or regular wallet, receives bot fee)
-            AccountMeta::new(authority, false), // authority (user's wallet, for PDA derivation - must be writable when combined with deploy)
+            AccountMeta::new(signer, true), // signer (used as authority by program)
             AccountMeta::new(board_address, false),
             AccountMeta::new(config_address, false), // config (needed for premine check)
             AccountMeta::new(miner_address, false),
@@ -799,14 +698,13 @@ pub fn reload_sol(
 // let [signer_info, mint_info, recipient_info, stake_info, treasury_info, treasury_tokens_info, system_program, token_program, associated_token_program] =
 
 /// Claim SOL yield from staking. Stakers earn SOL rewards (2% of round winnings), not OIL.
-pub fn claim_yield(signer: Pubkey, authority: Pubkey, amount: u64, stake_id: u64) -> Instruction {
-    let stake_address = stake_pda_with_id(authority, stake_id).0; // Derive from authority, not signer
+pub fn claim_yield(signer: Pubkey, amount: u64, stake_id: u64) -> Instruction {
+    let stake_address = stake_pda_with_id(signer, stake_id).0;
     let pool_address = pool_pda().0;
     Instruction {
         program_id: crate::ID,
         accounts: vec![
-            AccountMeta::new(signer, true), // payer (session payer or regular wallet)
-            AccountMeta::new(authority, true), // authority (user's wallet, receives SOL and used for PDA derivation)
+            AccountMeta::new(signer, true), // signer and writable for receiving SOL
             AccountMeta::new(stake_address, false),
             AccountMeta::new(pool_address, false),
             AccountMeta::new_readonly(system_program::ID, false),
@@ -1044,14 +942,23 @@ pub fn place_bid(
 /// Account structure:
 /// - Base: signer, miner, well accounts (one per well in mask), auction pool accounts (optional, one per well), auction, treasury, treasury_tokens, mint, mint_authority, mint_program, recipient, token_program, associated_token_program, system_program, oil_program
 /// - Bid accounts (one per well in mask, required for pool contributors): [bid_0, bid_1, bid_2, bid_3] (must include epoch_id in PDA)
+/// Claim auction-based OIL rewards
+/// 
+/// Account structure:
+/// - Base: signer, miner, well_0, well_1, well_2, well_3, auction, treasury, treasury_tokens, mint, mint_authority, mint_program, recipient, token_program, associated_token_program, system_program, oil_program
+/// - If miner has referrer (required): [miner_referrer, referral_referrer, referral_referrer_oil_ata]
 pub fn claim_auction_oil(
     signer: Pubkey,
     well_mask: u8, // Bitmask: bit 0 = well 0, bit 1 = well 1, etc.
-    well_accounts: [Option<Pubkey>; 4], // Well PDAs for wells 0-3 (required for wells in mask)
-    auction_pool_accounts: Option<[Option<Pubkey>; 4]>, // Auction Pool PDAs for wells 0-3 (optional, for pool contributors)
-    bid_accounts: Option<[Option<Pubkey>; 4]>, // Bid PDAs for wells 0-3 (required for pool contributors, must include epoch_id in PDA)
+    referrer_miner: Option<Pubkey>, // Referrer's miner PDA (if miner has referrer)
+    referrer_referral: Option<Pubkey>, // Referrer's referral PDA (if miner has referrer)
+    referrer_referral_oil_ata: Option<Pubkey>, // Referrer's referral OIL ATA (if miner has referrer)
 ) -> Instruction {
     let miner_address = miner_pda(signer).0;
+    let well_0_address = well_pda(0).0;
+    let well_1_address = well_pda(1).0;
+    let well_2_address = well_pda(2).0;
+    let well_3_address = well_pda(3).0;
     let auction_address = auction_pda().0;
     let treasury_address = treasury_pda().0;
     let treasury_tokens_address = get_associated_token_address(&treasury_address, &MINT_ADDRESS);
@@ -1061,56 +968,29 @@ pub fn claim_auction_oil(
     let mut accounts = vec![
         AccountMeta::new(signer, true),
         AccountMeta::new(miner_address, false),
-    ];
-    
-    // Add well accounts for wells in mask (all 4 required, but only wells in mask are used)
-    for well_opt in well_accounts.iter() {
-        if let Some(well_pubkey) = well_opt {
-            accounts.push(AccountMeta::new(*well_pubkey, false));
-        } else {
-            // Use a placeholder account if well is not provided
-            accounts.push(AccountMeta::new_readonly(system_program::ID, false));
-        }
-    }
-    
-    // Add auction pool accounts if provided (optional, for pool contributors)
-    if let Some(auction_pool_pdas) = auction_pool_accounts {
-        for auction_pool_pda_opt in auction_pool_pdas.iter() {
-            if let Some(auction_pool_pubkey) = auction_pool_pda_opt {
-                accounts.push(AccountMeta::new(*auction_pool_pubkey, false));
-            } else {
-                // Use a placeholder account if auction pool is not provided
-                accounts.push(AccountMeta::new_readonly(system_program::ID, false));
-            }
-        }
-    } else {
-        // Add 4 placeholder accounts if auction_pool_accounts is None
-        for _ in 0..4 {
-            accounts.push(AccountMeta::new_readonly(system_program::ID, false));
-        }
-    }
-    
-    accounts.extend_from_slice(&[
-        AccountMeta::new(auction_address, false), // Must be writable for auction_program_log CPI
+        AccountMeta::new(well_0_address, false),
+        AccountMeta::new(well_1_address, false),
+        AccountMeta::new(well_2_address, false),
+        AccountMeta::new(well_3_address, false),
+        AccountMeta::new(auction_address, false),
         AccountMeta::new(treasury_address, false),
         AccountMeta::new(treasury_tokens_address, false),
-        AccountMeta::new(MINT_ADDRESS, false), // Must be writable for mint_oil CPI
-        AccountMeta::new(mint_authority_address, false), // Must be writable for mint_oil CPI
+        AccountMeta::new(MINT_ADDRESS, false),
+        AccountMeta::new(mint_authority_address, false),
         AccountMeta::new_readonly(oil_mint_api::ID, false),
         AccountMeta::new(recipient_address, false),
         AccountMeta::new_readonly(spl_token::ID, false),
         AccountMeta::new_readonly(spl_associated_token_account::ID, false),
         AccountMeta::new_readonly(system_program::ID, false),
-        AccountMeta::new_readonly(crate::ID, false), // oil_program
-    ]);
+        AccountMeta::new_readonly(crate::ID, false),
+    ];
     
-    // Add bid accounts if provided (for pool contributors)
-    if let Some(bid_pdas) = bid_accounts {
-        for bid_pda_opt in bid_pdas.iter() {
-            if let Some(bid_pubkey) = bid_pda_opt {
-                accounts.push(AccountMeta::new(*bid_pubkey, false));
-            }
-        }
+    // Add referrer accounts if provided (required if miner has referrer)
+    if let (Some(miner_pubkey), Some(referral_pubkey), Some(oil_ata_pubkey)) = 
+        (referrer_miner, referrer_referral, referrer_referral_oil_ata) {
+        accounts.push(AccountMeta::new(miner_pubkey, false));
+        accounts.push(AccountMeta::new(referral_pubkey, false));
+        accounts.push(AccountMeta::new(oil_ata_pubkey, false));
     }
     
     Instruction {
@@ -1124,67 +1004,32 @@ pub fn claim_auction_oil(
 }
 
 /// Claim auction-based SOL rewards
-/// - SOL rewards: from being outbid and refunds from abandoned pools
 /// 
 /// Account structure:
-/// - Base: signer, miner, well accounts (one per well 0-3, for checking abandoned pools), auction pool accounts (optional, one per well), auction, treasury, system_program, oil_program
-/// - Bid accounts (one per well, required for refunds): [bid_0, bid_1, bid_2, bid_3] (must include epoch_id in PDA)
+/// - Base: signer (writable), miner, treasury, auction, system_program, oil_program
+/// - If miner has referrer (required): [miner_referrer, referral_referrer]
 pub fn claim_auction_sol(
     signer: Pubkey,
-    well_accounts: [Option<Pubkey>; 4], // Well PDAs for wells 0-3 (for checking abandoned pools)
-    auction_pool_accounts: Option<[Option<Pubkey>; 4]>, // Auction Pool PDAs for wells 0-3 (optional, for refunds)
-    bid_accounts: Option<[Option<Pubkey>; 4]>, // Bid PDAs for wells 0-3 (required for refunds, must include epoch_id in PDA)
+    referrer_miner: Option<Pubkey>, // Referrer's miner PDA (if miner has referrer)
+    referrer_referral: Option<Pubkey>, // Referrer's referral PDA (if miner has referrer)
 ) -> Instruction {
     let miner_address = miner_pda(signer).0;
     let (auction_address, _) = auction_pda();
     let treasury_address = treasury_pda().0;
     
     let mut accounts = vec![
-        AccountMeta::new(signer, true),
+        AccountMeta::new(signer, true), // signer and writable for receiving SOL
         AccountMeta::new(miner_address, false),
+        AccountMeta::new(treasury_address, false),
+        AccountMeta::new(auction_address, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(crate::ID, false),
     ];
     
-    // Add well accounts (all 4 wells for checking abandoned pools)
-    for well_opt in well_accounts.iter() {
-        if let Some(well_pubkey) = well_opt {
-            accounts.push(AccountMeta::new(*well_pubkey, false));
-        } else {
-            // Use a placeholder account if well is not provided
-            accounts.push(AccountMeta::new_readonly(system_program::ID, false));
-        }
-    }
-    
-    // Add auction pool accounts if provided (optional, for refunds)
-    if let Some(auction_pool_pdas) = auction_pool_accounts {
-        for auction_pool_pda_opt in auction_pool_pdas.iter() {
-            if let Some(auction_pool_pubkey) = auction_pool_pda_opt {
-                accounts.push(AccountMeta::new(*auction_pool_pubkey, false));
-            } else {
-                // Use a placeholder account if auction pool is not provided
-                accounts.push(AccountMeta::new_readonly(system_program::ID, false));
-            }
-        }
-    } else {
-        // Add 4 placeholder accounts if auction_pool_accounts is None
-        for _ in 0..4 {
-            accounts.push(AccountMeta::new_readonly(system_program::ID, false));
-        }
-    }
-    
-    accounts.extend_from_slice(&[
-        AccountMeta::new(auction_address, false), // Must be writable for auction_program_log CPI
-        AccountMeta::new(treasury_address, false),
-        AccountMeta::new_readonly(system_program::ID, false),
-        AccountMeta::new_readonly(crate::ID, false), // oil_program
-    ]);
-    
-    // Add bid accounts if provided (for refunds)
-    if let Some(bid_pdas) = bid_accounts {
-        for bid_pda_opt in bid_pdas.iter() {
-            if let Some(bid_pubkey) = bid_pda_opt {
-                accounts.push(AccountMeta::new(*bid_pubkey, false));
-            }
-        }
+    // Add referrer accounts if provided (required if miner has referrer)
+    if let (Some(miner_pubkey), Some(referral_pubkey)) = (referrer_miner, referrer_referral) {
+        accounts.push(AccountMeta::new(miner_pubkey, false));
+        accounts.push(AccountMeta::new(referral_pubkey, false));
     }
     
     Instruction {
@@ -1197,18 +1042,461 @@ pub fn claim_auction_sol(
     }
 }
 
-pub fn claim_seeker(signer: Pubkey, mint: Pubkey) -> Instruction {
-    let seeker_address = seeker_pda(mint).0;
-    let token_account_address = get_associated_token_address(&signer, &mint);
+// ============================================================================
+// FOGO Session SDK Functions
+// ============================================================================
+
+pub fn checkpoint_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    round_id: u64,
+) -> Instruction {
+    let miner_address = miner_pda(authority).0;
+    let board_address = board_pda().0;
+    let config_address = config_pda().0;
+    let round_address = round_pda(round_id).0;
+    let treasury_address = TREASURY_ADDRESS;
+    
+    // Manually construct instruction data with CheckpointWithSession discriminator (52)
+    // Checkpoint is an empty struct, so we just need the discriminator byte
+    let data = vec![52u8]; // CheckpointWithSession = 52
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts: vec![
+            AccountMeta::new(signer, true), // signer (session account)
+            AccountMeta::new(authority, false), // authority (user's wallet)
+            AccountMeta::new_readonly(program_signer, false), // program_signer
+            AccountMeta::new(board_address, false),
+            AccountMeta::new(config_address, false), // config (needed for premine check)
+            AccountMeta::new(miner_address, false),
+            AccountMeta::new(round_address, false),
+            AccountMeta::new(treasury_address, false),
+            AccountMeta::new_readonly(system_program::ID, false),
+        ],
+        data,
+    }
+}
+
+pub fn deploy_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    amount: u64,
+    round_id: u64,
+    squares: [bool; 25],
+    referrer: Option<Pubkey>,
+    pooled: bool,
+) -> Instruction {
+    let automation_address = automation_pda(authority).0;
+    let board_address = board_pda().0;
+    let miner_address = miner_pda(authority).0;
+    let round_address = round_pda(round_id).0;
+    let entropy_var_address = entropy_rng_api::state::var_pda(board_address, 0).0;
+
+    let mut mask: u32 = 0;
+    for (i, &square) in squares.iter().enumerate() {
+        if square {
+            mask |= 1 << i;
+        }
+    }
+    
+    let referrer_pubkey = referrer.unwrap_or(Pubkey::default());
+    // Match program logic: has_referrer = referrer != Pubkey::default() && referrer != authority
+    let has_referrer = referrer_pubkey != Pubkey::default() && referrer_pubkey != authority;
+    let user_wrapped_sol_ata = get_associated_token_address(&authority, &SOL_MINT);
+    let round_wrapped_sol_ata = get_associated_token_address(&round_address, &SOL_MINT);
+
+    let mut accounts = vec![
+        AccountMeta::new(signer, true),
+        AccountMeta::new(authority, false),
+        AccountMeta::new_readonly(program_signer, false),
+        AccountMeta::new(payer, false),
+        AccountMeta::new(automation_address, false),
+        AccountMeta::new(board_address, false),
+        AccountMeta::new(miner_address, false),
+        AccountMeta::new(round_address, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(crate::ID, false),
+        AccountMeta::new(user_wrapped_sol_ata, false),
+        AccountMeta::new(round_wrapped_sol_ata, false),
+        AccountMeta::new_readonly(spl_token::ID, false),
+        AccountMeta::new_readonly(SOL_MINT, false),
+        AccountMeta::new_readonly(spl_associated_token_account::ID, false),
+    ];
+    
+    if has_referrer {
+        let referral_address = referral_pda(referrer_pubkey).0;
+        accounts.push(AccountMeta::new(referral_address, false));
+    }
+    
+    accounts.push(AccountMeta::new(entropy_var_address, false));
+    accounts.push(AccountMeta::new_readonly(entropy_rng_api::ID, false));
+
+    Instruction {
+        program_id: crate::ID,
+        accounts,
+        data: Deploy {
+            amount: amount.to_le_bytes(),
+            squares: mask.to_le_bytes(),
+            referrer: referrer_pubkey.to_bytes(),
+            pooled: if pooled { 1 } else { 0 },
+        }
+        .to_bytes(),
+    }
+}
+
+pub fn automate_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    amount: u64,
+    deposit: u64,
+    executor: Pubkey,
+    fee: u64,
+    mask: u64,
+    strategy: u8,
+    reload: bool,
+    referrer: Option<Pubkey>,
+    pooled: bool,
+    is_new_miner: bool,
+) -> Instruction {
+    let automation_address = automation_pda(authority).0;
+    let miner_address = miner_pda(authority).0;
+    let referrer_pk = referrer.unwrap_or(Pubkey::default());
+    let user_wrapped_sol_ata = get_associated_token_address(&authority, &SOL_MINT);
+    let automation_wrapped_sol_ata = get_associated_token_address(&automation_address, &SOL_MINT);
+    
+    let mut accounts = vec![
+        AccountMeta::new(signer, true),
+        AccountMeta::new(authority, false),
+        AccountMeta::new_readonly(program_signer, false),
+        AccountMeta::new(payer, false),
+        AccountMeta::new(automation_address, false),
+        AccountMeta::new(executor, false),
+        AccountMeta::new(miner_address, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(crate::ID, false),
+        AccountMeta::new(user_wrapped_sol_ata, false),
+        AccountMeta::new(automation_wrapped_sol_ata, false),
+        AccountMeta::new_readonly(spl_token::ID, false),
+        AccountMeta::new_readonly(SOL_MINT, false),
+        AccountMeta::new_readonly(spl_associated_token_account::ID, false),
+    ];
+    
+    if is_new_miner && referrer.is_some() && referrer_pk != Pubkey::default() {
+        let referral_address = referral_pda(referrer_pk).0;
+        accounts.push(AccountMeta::new(referral_address, false));
+    }
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts,
+        data: Automate {
+            amount: amount.to_le_bytes(),
+            deposit: deposit.to_le_bytes(),
+            fee: fee.to_le_bytes(),
+            mask: mask.to_le_bytes(),
+            strategy: strategy as u8,
+            reload: (reload as u64).to_le_bytes(),
+            referrer: referrer_pk.to_bytes(),
+            pooled: pooled as u8,
+        }
+        .to_bytes(),
+    }
+}
+
+pub fn place_bid_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    square_id: u64,
+    fee_collector: Pubkey,
+    previous_owner_miner: Option<Pubkey>,
+    previous_owner: Option<Pubkey>,
+    referrer: Option<Pubkey>,
+) -> Instruction {
+    let well_address = well_pda(square_id).0;
+    let auction_address = auction_pda().0;
+    let treasury_address = treasury_pda().0;
+    let treasury_tokens_address = get_associated_token_address(&treasury_address, &MINT_ADDRESS);
+    let staking_pool_address = pool_pda().0;
+    let config_address = config_pda().0;
+    let mint_authority_address = oil_mint_api::state::authority_pda().0;
+    let bidder_miner_address = miner_pda(authority).0;
+    let user_wrapped_sol_ata = get_associated_token_address(&authority, &SOL_MINT);
+    let treasury_wrapped_sol_ata = get_associated_token_address(&treasury_address, &SOL_MINT);
+    
+    let mut accounts = vec![
+        AccountMeta::new(signer, true),
+        AccountMeta::new(authority, false),
+        AccountMeta::new_readonly(program_signer, false),
+        AccountMeta::new(payer, false),
+        AccountMeta::new(well_address, false),
+        AccountMeta::new(auction_address, false),
+        AccountMeta::new(treasury_address, false),
+        AccountMeta::new(treasury_tokens_address, false),
+        AccountMeta::new(MINT_ADDRESS, false),
+        AccountMeta::new(mint_authority_address, false),
+        AccountMeta::new_readonly(oil_mint_api::ID, false),
+        AccountMeta::new(staking_pool_address, false),
+        AccountMeta::new(fee_collector, false),
+        AccountMeta::new_readonly(config_address, false),
+        AccountMeta::new_readonly(spl_token::ID, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(crate::ID, false),
+        AccountMeta::new(bidder_miner_address, false),
+    ];
+    
+    if let (Some(miner_pubkey), Some(owner_pubkey)) = (previous_owner_miner, previous_owner) {
+        accounts.push(AccountMeta::new(miner_pubkey, false));
+        accounts.push(AccountMeta::new(owner_pubkey, false));
+    }
+    
+    if let Some(referrer_pubkey) = referrer {
+        let referral_address = referral_pda(referrer_pubkey).0;
+        accounts.push(AccountMeta::new(referral_address, false));
+    }
+    
+    accounts.extend_from_slice(&[
+        AccountMeta::new(user_wrapped_sol_ata, false),
+        AccountMeta::new(treasury_wrapped_sol_ata, false),
+        AccountMeta::new_readonly(spl_token::ID, false),
+        AccountMeta::new_readonly(SOL_MINT, false),
+        AccountMeta::new_readonly(spl_associated_token_account::ID, false),
+    ]);
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts,
+        data: instruction::PlaceBid {
+            square_id: square_id.to_le_bytes(),
+            referrer: referrer.unwrap_or(Pubkey::default()).to_bytes(),
+        }
+        .to_bytes(),
+    }
+}
+
+pub fn claim_auction_oil_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    well_mask: u8,
+    referrer_miner: Option<Pubkey>,
+    referrer_referral: Option<Pubkey>,
+    referrer_referral_oil_ata: Option<Pubkey>,
+) -> Instruction {
+    let miner_address = miner_pda(authority).0;
+    let well_0_address = well_pda(0).0;
+    let well_1_address = well_pda(1).0;
+    let well_2_address = well_pda(2).0;
+    let well_3_address = well_pda(3).0;
+    let auction_address = auction_pda().0;
+    let treasury_address = treasury_pda().0;
+    let treasury_tokens_address = get_associated_token_address(&treasury_address, &MINT_ADDRESS);
+    let recipient_address = get_associated_token_address(&authority, &MINT_ADDRESS);
+    let mint_authority_address = oil_mint_api::state::authority_pda().0;
+    
+    let mut accounts = vec![
+        AccountMeta::new(signer, true),
+        AccountMeta::new(authority, false),
+        AccountMeta::new_readonly(program_signer, false),
+        AccountMeta::new(payer, false),
+        AccountMeta::new(miner_address, false),
+        AccountMeta::new(well_0_address, false),
+        AccountMeta::new(well_1_address, false),
+        AccountMeta::new(well_2_address, false),
+        AccountMeta::new(well_3_address, false),
+        AccountMeta::new(auction_address, false),
+        AccountMeta::new(treasury_address, false),
+        AccountMeta::new(treasury_tokens_address, false),
+        AccountMeta::new(MINT_ADDRESS, false),
+        AccountMeta::new(mint_authority_address, false),
+        AccountMeta::new_readonly(oil_mint_api::ID, false),
+        AccountMeta::new(recipient_address, false),
+        AccountMeta::new_readonly(spl_token::ID, false),
+        AccountMeta::new_readonly(spl_associated_token_account::ID, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(crate::ID, false),
+    ];
+    
+    if let (Some(miner_pubkey), Some(referral_pubkey), Some(oil_ata_pubkey)) = 
+        (referrer_miner, referrer_referral, referrer_referral_oil_ata) {
+        accounts.push(AccountMeta::new(miner_pubkey, false));
+        accounts.push(AccountMeta::new(referral_pubkey, false));
+        accounts.push(AccountMeta::new(oil_ata_pubkey, false));
+    }
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts,
+        data: ClaimAuctionOIL {
+            well_mask,
+        }
+        .to_bytes(),
+    }
+}
+
+pub fn claim_auction_sol_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    referrer_miner: Option<Pubkey>,
+    referrer_referral: Option<Pubkey>,
+) -> Instruction {
+    let miner_address = miner_pda(authority).0;
+    let (auction_address, _) = auction_pda();
+    let treasury_address = treasury_pda().0;
+    
+    let mut accounts = vec![
+        AccountMeta::new(signer, true),
+        AccountMeta::new(authority, false),
+        AccountMeta::new_readonly(program_signer, false),
+        AccountMeta::new(payer, false),
+        AccountMeta::new(miner_address, false),
+        AccountMeta::new(treasury_address, false),
+        AccountMeta::new(auction_address, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(crate::ID, false),
+    ];
+    
+    if let (Some(miner_pubkey), Some(referral_pubkey)) = (referrer_miner, referrer_referral) {
+        accounts.push(AccountMeta::new(miner_pubkey, false));
+        accounts.push(AccountMeta::new(referral_pubkey, false));
+    }
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts,
+        data: ClaimAuctionSOL {
+            _reserved: 0,
+        }
+        .to_bytes(),
+    }
+}
+
+pub fn claim_sol_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    referrer_miner: Option<Pubkey>,
+    referrer_referral: Option<Pubkey>,
+) -> Instruction {
+    let miner_address = miner_pda(authority).0;
+    
+    let mut accounts = vec![
+        AccountMeta::new(signer, true),
+        AccountMeta::new(authority, false),
+        AccountMeta::new_readonly(program_signer, false),
+        AccountMeta::new(payer, false),
+        AccountMeta::new(miner_address, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+    ];
+    
+    if let (Some(miner_pubkey), Some(referral_pubkey)) = (referrer_miner, referrer_referral) {
+        accounts.push(AccountMeta::new(miner_pubkey, false));
+        accounts.push(AccountMeta::new(referral_pubkey, false));
+    }
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts,
+        data: ClaimSOL {}.to_bytes(),
+    }
+}
+
+pub fn claim_oil_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    referrer_miner: Option<Pubkey>,
+    referrer_referral: Option<Pubkey>,
+    referrer_referral_oil_ata: Option<Pubkey>,
+) -> Instruction {
+    let miner_address = miner_pda(authority).0;
+    let treasury_address = treasury_pda().0;
+    let treasury_tokens_address = get_associated_token_address(&treasury_address, &MINT_ADDRESS);
+    let recipient_address = get_associated_token_address(&authority, &MINT_ADDRESS);
+    
+    let mut accounts = vec![
+        AccountMeta::new(signer, true),
+        AccountMeta::new(authority, false),
+        AccountMeta::new_readonly(program_signer, false),
+        AccountMeta::new(payer, false),
+        AccountMeta::new(miner_address, false),
+        AccountMeta::new(MINT_ADDRESS, false),
+        AccountMeta::new(recipient_address, false),
+        AccountMeta::new(treasury_address, false),
+        AccountMeta::new(treasury_tokens_address, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(spl_token::ID, false),
+        AccountMeta::new_readonly(spl_associated_token_account::ID, false),
+    ];
+    
+    if let (Some(miner_pubkey), Some(referral_pubkey), Some(oil_ata_pubkey)) = 
+        (referrer_miner, referrer_referral, referrer_referral_oil_ata) {
+        accounts.push(AccountMeta::new(miner_pubkey, false));
+        accounts.push(AccountMeta::new(referral_pubkey, false));
+        accounts.push(AccountMeta::new(oil_ata_pubkey, false));
+    }
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts,
+        data: ClaimOIL {}.to_bytes(),
+    }
+}
+
+pub fn withdraw_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    amount: u64,
+    stake_id: u64,
+) -> Instruction {
+    let stake_address = stake_pda_with_id(authority, stake_id).0;
+    let stake_tokens_address = get_associated_token_address(&stake_address, &MINT_ADDRESS);
+    let mint_address = MINT_ADDRESS;
+    let recipient_address = get_associated_token_address(&authority, &MINT_ADDRESS);
+    let pool_address = pool_pda().0;
+    let pool_tokens_address = pool_tokens_address();
+    let miner_address = miner_pda(authority).0;
+    let treasury_address = treasury_pda().0;
+    let treasury_tokens_address = treasury_tokens_address();
+    
     Instruction {
         program_id: crate::ID,
         accounts: vec![
             AccountMeta::new(signer, true),
-            AccountMeta::new_readonly(mint, false),
-            AccountMeta::new(seeker_address, false),
-            AccountMeta::new(token_account_address, false),
+            AccountMeta::new(authority, false),
+            AccountMeta::new_readonly(program_signer, false),
+            AccountMeta::new(payer, false),
+            AccountMeta::new(mint_address, false),
+            AccountMeta::new(recipient_address, false),
+            AccountMeta::new(stake_address, false),
+            AccountMeta::new(stake_tokens_address, false),
+            AccountMeta::new(pool_address, false),
+            AccountMeta::new(pool_tokens_address, false),
+            AccountMeta::new(miner_address, false),
+            AccountMeta::new(treasury_address, false),
+            AccountMeta::new(treasury_tokens_address, false),
             AccountMeta::new_readonly(system_program::ID, false),
+            AccountMeta::new_readonly(spl_token::ID, false),
+            AccountMeta::new_readonly(spl_associated_token_account::ID, false),
         ],
-        data: ClaimSeeker {}.to_bytes(),
+        data: Withdraw {
+            amount: amount.to_le_bytes(),
+            stake_id: stake_id.to_le_bytes(),
+        }
+        .to_bytes(),
     }
 }

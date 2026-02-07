@@ -1,10 +1,12 @@
 use entropy_rng_api::state::Var;
 use oil_api::prelude::*;
+use oil_api::consts::SOL_MINT;
+use oil_api::fogo;
+use oil_api::utils::create_or_validate_wrapped_sol_ata;
 use solana_program::{keccak::hashv, log::sol_log, native_token::lamports_to_sol};
 use steel::*;
 
-/// Deploys capital to prospect on a square.
-pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
+pub fn process_deploy_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: &[u8]) -> ProgramResult {
     let args = Deploy::try_from_bytes(data)?;
     let mut amount = u64::from_le_bytes(args.amount);
     let mask = u32::from_le_bytes(args.squares);
@@ -14,7 +16,7 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
     let clock = Clock::get()?;
     let has_referrer = referrer != Pubkey::default() && referrer != *accounts[1].key;
     
-    let oil_accounts_count = 8 + if has_referrer { 1 } else { 0 };
+    let oil_accounts_count = 15 + if has_referrer { 1 } else { 0 };
     
     if accounts.len() != oil_accounts_count + 2 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -22,21 +24,40 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
     
     let (oil_accounts, entropy_accounts) = accounts.split_at(oil_accounts_count);
     
-    let expected_len = 8 + if has_referrer { 1 } else { 0 };
+    let expected_len = 15 + if has_referrer { 1 } else { 0 };
     if oil_accounts.len() != expected_len {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     let mut accounts_iter = oil_accounts.iter();
-    oil_api::extract_accounts!(accounts_iter, [s, a, aut, b, m, r, sp, op]);
+    oil_api::extract_accounts!(accounts_iter, [s, a, ps, pay, aut, b, m, r, sp, op, uws, rws, tp, mi, atap]);
     let ref_info = if has_referrer { accounts_iter.next() } else { None };
-    let (signer_info, authority_info, automation_info, board_info, miner_info, 
-         round_info, system_program, oil_program, 
-         referral_info_opt) = (s, a, aut, b, m, r, sp, op, ref_info);
+    let (signer_info, authority_info, program_signer_info, payer_info, automation_info, board_info, 
+         miner_info, round_info, system_program, oil_program, user_wrapped_sol_info,
+         round_wrapped_sol_info, token_program_info, mint_info, ata_program_info, referral_info_opt) = 
+         (s, a, ps, pay, aut, b, m, r, sp, op, uws, rws, tp, mi, atap, ref_info);
         
     signer_info.is_signer()?;
+    
+    fogo::validate_session(signer_info)?;
+    fogo::validate_program_signer(program_signer_info)?;
+    
     authority_info.is_writable()?;
     automation_info.is_writable()?.has_seeds(&[AUTOMATION, &authority_info.key.to_bytes()], &oil_api::ID)?;
     let board = board_info.as_account_mut::<Board>(&oil_api::ID)?;
+    token_program_info.is_program(&spl_token::ID)?;
+    mint_info.has_address(&SOL_MINT)?;
+    ata_program_info.is_program(&spl_associated_token_account::ID)?;
+    
+    create_or_validate_wrapped_sol_ata(
+        user_wrapped_sol_info,
+        authority_info,
+        mint_info,
+        payer_info,
+        system_program,
+        token_program_info,
+        ata_program_info,
+        None,
+    )?;
     
     if board.end_slot != u64::MAX {
         board.assert_mut(|b| clock.slot >= b.start_slot && clock.slot < b.end_slot)?;
@@ -54,11 +75,63 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
         None
     };
     
-    // Deserialize the round account (like ORE does).
-    // The round account must already exist (created in reset).
-    let round = round_info
-        .as_account_mut::<Round>(&oil_api::ID)?
-        .assert_mut(|r| r.id == board.round_id)?;
+    let round = if round_info.data_is_empty() {
+        round_info.is_writable()?.has_seeds(&[ROUND, &board.round_id.to_le_bytes()], &oil_api::ID)?;
+        create_program_account::<Round>(
+            round_info,
+            system_program,
+            payer_info,
+            &oil_api::ID,
+            &[ROUND, &board.round_id.to_le_bytes()],
+        )?;
+        let round = round_info.as_account_mut::<Round>(&oil_api::ID)?;
+        round.id = board.round_id;
+        round.deployed = [0; 25];
+        round.slot_hash = [0; 32];
+        round.count = [0; 25];
+        round.expires_at = u64::MAX;
+        round.rent_payer = *signer_info.key;
+        round.gusher_sol = 0;
+        round.top_miner = Pubkey::default();
+        round.top_miner_reward = 0;
+        round.total_deployed = 0;
+        round.total_vaulted = 0;
+        round.total_winnings = 0;
+        round.deployed_pooled = [0; 25];
+        round.total_pooled = 0;
+        round.pool_rewards_sol = 0;
+        round.pool_rewards_oil = 0;
+        round.pool_members = 0;
+        round.pool_cumulative = [0; 25];
+        
+        create_or_validate_wrapped_sol_ata(
+            round_wrapped_sol_info,
+            round_info,
+            mint_info,
+            payer_info,
+            system_program,
+            token_program_info,
+            ata_program_info,
+            None,
+        )?;
+        
+        round
+    } else {
+        let round = round_info.as_account_mut::<Round>(&oil_api::ID)?.assert_mut(|r| r.id == board.round_id)?;
+        
+        create_or_validate_wrapped_sol_ata(
+            round_wrapped_sol_info,
+            round_info,
+            mint_info,
+            payer_info,
+            system_program,
+            token_program_info,
+            ata_program_info,
+            None,
+        )?;
+        
+        round
+    };
     
     miner_info.is_writable()?.has_seeds(&[MINER, &authority_info.key.to_bytes()], &oil_api::ID)?;
     system_program.is_program(&system_program::ID)?;
@@ -94,8 +167,6 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
                 }
             }
             AutomationStrategy::Repeat => {
-                // Repeat works like Preferred - uses mask to determine squares
-                // Mask will be updated after deployment with squares that were actually deployed
                 for i in 0..25 {
                     squares[i] = (automation.mask & (1 << i)) != 0;
                 }
@@ -121,7 +192,7 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
         create_program_account::<Miner>(
             miner_info,
             system_program,
-            signer_info,
+            payer_info,
             &oil_api::ID,
             &[MINER, &authority_info.key.to_bytes()],
         )?;
@@ -158,7 +229,7 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
     let is_first_deploy = miner.deployed.iter().sum::<u64>() == 0;
     let mut total_amount = 0;
     let mut total_squares = 0;
-    let mut deployed_squares_this_tx = [false; 25]; // Track squares deployed in this transaction
+    let mut deployed_squares_this_tx = [false; 25];
     for (square_id, &should_deploy) in squares.iter().enumerate() {
         if square_id > 24 {
             break;
@@ -177,7 +248,7 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
         round.count[square_id] += 1;
         total_amount += amount;
         total_squares += 1;
-        deployed_squares_this_tx[square_id] = true; // Mark as deployed in this transaction
+        deployed_squares_this_tx[square_id] = true;
 
         if let Some(automation) = &automation {
             if total_amount + automation.fee + amount > automation.balance {
@@ -213,7 +284,7 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
 
     if miner.checkpoint_fee == 0 {
         miner.checkpoint_fee = CHECKPOINT_FEE;
-        miner_info.collect(CHECKPOINT_FEE, signer_info)?;
+        miner_info.collect(CHECKPOINT_FEE, payer_info)?;
     }
 
     if let Some(automation) = automation {
@@ -235,7 +306,30 @@ pub fn process_deploy(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResul
             automation_info.close(authority_info)?;
         }
     } else {
-        round_info.collect(total_amount, signer_info)?;
+        if user_wrapped_sol_info.data_is_empty() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        user_wrapped_sol_info.as_associated_token_account(authority_info.key, mint_info.key)?;
+        if round_wrapped_sol_info.data_is_empty() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        round_wrapped_sol_info.as_associated_token_account(round_info.key, mint_info.key)?;
+
+        let round_id_bytes = round.id.to_le_bytes();
+        let round_seeds: &[&[u8]] = &[ROUND, &round_id_bytes];
+        
+        fogo::transfer_wrapped_sol_and_unwrap(
+            signer_info,
+            program_signer_info,
+            payer_info,
+            total_amount,
+            user_wrapped_sol_info,
+            round_wrapped_sol_info,
+            round_info,
+            mint_info,
+            token_program_info,
+            round_seeds,
+        )?;
     }
 
     program_log(

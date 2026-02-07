@@ -1,34 +1,36 @@
 use oil_api::prelude::*;
+use oil_api::fogo;
 use solana_program::log::sol_log;
 use spl_token::amount_to_ui_amount;
 use steel::*;
 
-/// Withdraws OIL from the staking contract.
-pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
-    // Parse data.
+/// Withdraws OIL from the staking contract (FOGO session)
+pub fn process_withdraw_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: &[u8]) -> ProgramResult {
     let args = Withdraw::try_from_bytes(data)?;
     let amount = u64::from_le_bytes(args.amount);
     let stake_id = u64::from_le_bytes(args.stake_id);
     
-    // Only allow a single stake account per user (stake_id must be 0)
     if stake_id != 0 {
         return Err(ProgramError::InvalidArgument);
     }
 
     let clock = Clock::get()?;
-    let [signer_info, mint_info, recipient_info, stake_info, stake_tokens_info, pool_info, pool_tokens_info, miner_info, treasury_info, treasury_oil_info, system_program, token_program, associated_token_program] =
+    let [program_signer_info, payer_info, authority_info, mint_info, recipient_info, stake_info, stake_tokens_info, pool_info, pool_tokens_info, miner_info, treasury_info, treasury_oil_info, system_program, token_program, associated_token_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-    signer_info.is_signer()?;
+    program_signer_info.is_signer()?;
+    payer_info.is_signer()?;
     
-    let authority = *signer_info.key;
+    fogo::validate_program_signer(program_signer_info)?;
+    
+    let authority = *authority_info.key;
     
     mint_info.has_address(&MINT_ADDRESS)?.as_mint()?;
     recipient_info
         .is_writable()?
-        .as_associated_token_account(&signer_info.key, &mint_info.key)?;
+        .as_associated_token_account(authority_info.key, mint_info.key)?;
     stake_info.has_seeds(&[STAKE, &authority.to_bytes(), &stake_id.to_le_bytes()], &oil_api::ID)?;
     let stake = stake_info
         .as_account_mut::<Stake>(&oil_api::ID)?
@@ -45,18 +47,17 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
     token_program.is_program(&spl_token::ID)?;
     associated_token_program.is_program(&spl_associated_token_account::ID)?;
 
-    // Calculate penalty if stake is still locked (early withdrawal)
     let is_locked = stake.is_locked(&clock);
     let penalty_percent = if is_locked {
         Stake::calculate_penalty_percent(stake.lock_duration_days)
     } else {
-        0 // No penalty if lock has expired
+        0
     };
 
     if recipient_info.data_is_empty() {
         create_associated_token_account(
-            signer_info,
-            signer_info,
+            payer_info,
+            authority_info,
             recipient_info,
             mint_info,
             system_program,
@@ -65,17 +66,13 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
         )?;
     }
 
-    // Calculate old score before withdraw (for miner account update)
     let old_stake_score = stake.score();
     
-    // Withdraw from stake account (updates balance and pool.total_staked_score)
     let withdrawn_amount = stake.withdraw(amount, &clock, pool);
     
-    // Calculate new score after withdraw
     let new_stake_score = stake.score();
     let stake_score_delta = old_stake_score.saturating_sub(new_stake_score);
     
-    // Update miner account's total_stake_score
     if !miner_info.data_is_empty() {
         if let Ok(miner) = miner_info.as_account_mut::<Miner>(&oil_api::ID) {
             if miner.authority == authority {
@@ -84,7 +81,6 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
         }
     }
 
-    // Calculate penalty amount if early withdrawal
     let penalty_amount = if penalty_percent > 0 {
         (withdrawn_amount as u128 * penalty_percent as u128 / 100) as u64
     } else {
@@ -93,9 +89,7 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
     
     let user_amount = withdrawn_amount.saturating_sub(penalty_amount);
 
-    // If there's a penalty, transfer penalty to treasury and burn it
     if penalty_amount > 0 {
-        // Transfer penalty from pool to treasury
         transfer_signed(
             pool_info,
             pool_tokens_info,
@@ -105,7 +99,6 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
             &[POOL],
         )?;
         
-        // Burn the penalty (deflationary)
         burn_signed(
             treasury_oil_info,
             mint_info,
@@ -115,7 +108,6 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
             &[TREASURY],
         )?;
         
-        // Track total burned penalties
         pool.total_burned_penalties = pool.total_burned_penalties.saturating_add(penalty_amount);
         
         sol_log(
@@ -129,7 +121,6 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
         );
     }
 
-    // Transfer remaining OIL from pool tokens account to recipient.
     if user_amount > 0 {
     transfer_signed(
         pool_info,
@@ -141,14 +132,12 @@ pub fn process_withdraw(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRes
     )?;
     }
 
-    // Safety check: Verify pool has enough tokens to cover remaining stakes.
     let pool_tokens = pool_tokens_info.as_associated_token_account(pool_info.key, mint_info.key)?;
     assert!(
         pool_tokens.amount() >= pool.total_staked,
         "Pool tokens insufficient to cover total staked"
     );
 
-    // Log withdraw.
     sol_log(
         &format!(
             "Withdrawing {} OIL ({} to user, {} penalty)",

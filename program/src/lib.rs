@@ -3,16 +3,28 @@ mod automate;
 mod buyback;
 mod wrap;
 mod checkpoint;
+mod checkpoint_with_session;
 mod claim_oil;
 mod claim_referral;
-mod claim_seeker;   
+mod claim_referral_with_session;
 mod claim_sol;
 mod claim_yield;
+mod claim_yield_with_session;
 mod close;
 mod create_referral;
+mod create_referral_with_session;
 mod create_whitelist;
 mod deploy;
+mod deploy_with_session;
+mod automate_with_session;
+mod place_bid_with_session;
+mod claim_auction_oil_with_session;
+mod claim_auction_sol_with_session;
+mod claim_sol_with_session;
+mod claim_oil_with_session;
+mod withdraw_with_session;
 mod deposit;
+mod deposit_with_session;
 mod log;
 mod migrate;
 mod new_var;
@@ -37,15 +49,20 @@ use automate::*;
 use buyback::*;
 use wrap::*;
 use checkpoint::*;
+use checkpoint_with_session::*;
 use claim_oil::*;
 use claim_referral::*;
+use claim_referral_with_session::*;
 use claim_sol::*;
-use claim_seeker::*;
 use claim_yield::*;
+use claim_yield_with_session::*;
 use close::*;
 use create_referral::*;
+use create_referral_with_session::*;
 use create_whitelist::*;
 use deploy::*;
+use deploy_with_session::*;
+use automate_with_session::*;
 use deposit::*;
 use log::*;
 use migrate::*;
@@ -59,6 +76,13 @@ use set_swap_program::*;
 use set_var_address::*;
 use withdraw::*;
 use place_bid::*;
+use place_bid_with_session::*;
+use claim_auction_oil_with_session::*;
+use claim_auction_sol_with_session::*;
+use claim_sol_with_session::*;
+use claim_oil_with_session::*;
+use withdraw_with_session::*;
+use deposit_with_session::*;
 use claim_auction_oil::*;
 use claim_auction_sol::*;
 use set_auction::*;
@@ -68,9 +92,9 @@ use barrel::*;
 use oil_api::instruction::*;
 use steel::*;
 
-pub fn process_instruction(
+pub fn process_instruction<'a>(
     program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    accounts: &'a [AccountInfo<'a>],
     data: &[u8],
 ) -> ProgramResult {
     let (ix, data) = parse_instruction(&oil_api::ID, program_id, data)?;
@@ -79,11 +103,15 @@ pub fn process_instruction(
         
         // Miner
         OilInstruction::Automate => process_automate(accounts, data)?,
+        OilInstruction::AutomateWithSession => process_automate_with_session(accounts, data)?,
         OilInstruction::Checkpoint => process_checkpoint(accounts, data)?,
+        OilInstruction::CheckpointWithSession => process_checkpoint_with_session(accounts, data)?,
         OilInstruction::ClaimSOL => process_claim_sol(accounts, data)?,
+        OilInstruction::ClaimSOLWithSession => process_claim_sol_with_session(accounts, data)?,
         OilInstruction::ClaimOIL => process_claim_oil(accounts, data)?,
-        OilInstruction::ClaimSeeker => process_claim_seeker(accounts, data)?,
+        OilInstruction::ClaimOILWithSession => process_claim_oil_with_session(accounts, data)?,
         OilInstruction::Deploy => process_deploy(accounts, data)?,
+        OilInstruction::DeployWithSession => process_deploy_with_session(accounts, data)?,
         OilInstruction::Log => process_log(accounts, data)?,
         OilInstruction::Close => process_close(accounts, data)?,
         OilInstruction::Reset => process_reset(accounts, data)?,
@@ -91,8 +119,11 @@ pub fn process_instruction(
 
         // Staker
         OilInstruction::Deposit => process_deposit(accounts, data)?,
+        OilInstruction::DepositWithSession => process_deposit_with_session(accounts, data)?,
         OilInstruction::Withdraw => process_withdraw(accounts, data)?,
+        OilInstruction::WithdrawWithSession => process_withdraw_with_session(accounts, data)?,
         OilInstruction::ClaimYield => process_claim_yield(accounts, data)?,
+        OilInstruction::ClaimYieldWithSession => process_claim_yield_with_session(accounts, data)?,
 
         // Admin
         OilInstruction::Initialize => process_initialize(accounts, data)?,
@@ -109,7 +140,9 @@ pub fn process_instruction(
         
         // Referral
         OilInstruction::CreateReferral => process_create_referral(accounts, data)?,
+        OilInstruction::CreateReferralWithSession => process_create_referral_with_session(accounts, data)?,
         OilInstruction::ClaimReferral => process_claim_referral(accounts, data)?,
+        OilInstruction::ClaimReferralWithSession => process_claim_referral_with_session(accounts, data)?,
 
         // Pre-mine
         OilInstruction::CreateWhitelist => process_create_whitelist(accounts, data)?,
@@ -117,8 +150,11 @@ pub fn process_instruction(
 
         // Auction-based mining
         OilInstruction::PlaceBid => process_place_bid(accounts, data)?,
+        OilInstruction::PlaceBidWithSession => process_place_bid_with_session(accounts, data)?,
         OilInstruction::ClaimAuctionOIL => process_claim_auction_oil(accounts, data)?,
+        OilInstruction::ClaimAuctionOILWithSession => process_claim_auction_oil_with_session(accounts, data)?,
         OilInstruction::ClaimAuctionSOL => process_claim_auction_sol(accounts, data)?,
+        OilInstruction::ClaimAuctionSOLWithSession => process_claim_auction_sol_with_session(accounts, data)?,
         OilInstruction::SetAuction => process_set_auction(accounts, data)?,
         OilInstruction::Barrel => process_barrel(accounts, data)?,
 

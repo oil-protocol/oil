@@ -6,28 +6,40 @@ use bytemuck;
 pub enum OilInstruction {
     // Miner
     Automate = 0,
+    AutomateWithSession = 40,
     Initialize = 1,
     Checkpoint = 2,
+    CheckpointWithSession = 52,
     ClaimSOL = 3,
+    ClaimSOLWithSession = 44,
     ClaimOIL = 4,
+    ClaimOILWithSession = 45,
     Close = 5,
     Deploy = 6,
-    ClaimSeeker = 7,
+    DeployWithSession = 39,
     Log = 8,
     Reset = 9,
     ReloadSOL = 22,
     CreateReferral = 27,
+    CreateReferralWithSession = 49,
     ClaimReferral = 28,
+    ClaimReferralWithSession = 50,
 
     // Auction-based mining
     PlaceBid = 29,
+    PlaceBidWithSession = 41,
     ClaimAuctionOIL = 31,
+    ClaimAuctionOILWithSession = 42,
     ClaimAuctionSOL = 32,
+    ClaimAuctionSOLWithSession = 43,
 
     // Staker
     Deposit = 10,
+    DepositWithSession = 48,
     Withdraw = 11,
+    WithdrawWithSession = 47,
     ClaimYield = 12,
+    ClaimYieldWithSession = 51,
 
     // Admin
     Buyback = 13,
@@ -63,19 +75,11 @@ pub struct Automate {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct InitRound {}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct ClaimSOL {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct ClaimOIL {}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct ClaimSeeker {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -102,27 +106,6 @@ pub struct Close {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct Mine {
-    pub nonce: [u8; 8],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct Swap {
-    pub amount: [u8; 8],
-    pub direction: u8,
-    pub precision: u8,
-    pub seed: [u8; 32],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct Uncommit {
-    pub amount: [u8; 8],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct SetAdmin {
     pub admin: [u8; 32],
 }
@@ -131,12 +114,6 @@ pub struct SetAdmin {
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct SetFeeCollector {
     pub fee_collector: [u8; 32],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct SetFeeRate {
-    pub fee_rate: [u8; 8],
 }
 
 #[repr(C)]
@@ -289,27 +266,11 @@ pub struct SetAuction {
     pub well_id: [u8; 8],  // Well ID to update (0-3). If >= 4, only updates auction account.
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct JoinAuctionPool {
-    /// Square ID (well ID) for this pool contribution (0-3)
-    pub square_id: [u8; 8],
-    /// SOL amount to contribute (in lamports)
-    pub amount: [u8; 8],
-}
-
-impl JoinAuctionPool {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        bytemuck::bytes_of(self).to_vec()
-    }
-}
-
 instruction!(OilInstruction, Automate);
 instruction!(OilInstruction, Initialize);
 instruction!(OilInstruction, Checkpoint);
 instruction!(OilInstruction, ClaimSOL);
 instruction!(OilInstruction, ClaimOIL);
-instruction!(OilInstruction, ClaimSeeker);
 instruction!(OilInstruction, ReloadSOL);
 instruction!(OilInstruction, Deploy);
 instruction!(OilInstruction, Log);

@@ -1,73 +1,71 @@
 use oil_api::prelude::*;
+use oil_api::fogo;
 use solana_program::{log::sol_log, native_token::lamports_to_sol};
 use steel::*;
 
-/// Claims SOL rewards with single-tier referral system.
-pub fn process_claim_sol(accounts: &[AccountInfo<'_>], _data: &[u8]) -> ProgramResult {
-    // Load accounts.
+/// Claims SOL rewards with single-tier referral system (FOGO session)
+pub fn process_claim_sol_with_session<'a>(accounts: &'a [AccountInfo<'a>], _data: &[u8]) -> ProgramResult {
     let clock = Clock::get()?;
     
-    if accounts.len() < 3 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     
-    let signer_info = &accounts[0];
-    let miner_info = &accounts[1];
-    let system_program = &accounts[2];
+    let program_signer_info = &accounts[0];
+    let payer_info = &accounts[1];
+    let authority_info = &accounts[2];
+    let miner_info = &accounts[3];
+    let system_program = &accounts[4];
     
-    signer_info.is_signer()?;
-    signer_info.is_writable()?;
+    program_signer_info.is_signer()?;
+    payer_info.is_signer()?;
+    authority_info.is_writable()?;
+    
+    fogo::validate_program_signer(program_signer_info)?;
+    
+    let authority = *authority_info.key;
     
     let miner = miner_info
         .as_account_mut::<Miner>(&oil_api::ID)?
-        .assert_mut(|m| m.authority == *signer_info.key)?;
+        .assert_mut(|m| m.authority == authority)?;
     system_program.is_program(&system_program::ID)?;
 
-    // Get claimable amount (includes both regular SOL and gusher SOL).
     let total_amount = miner.claim_sol(&clock);
 
     let referral_amount = if miner.referrer != Pubkey::default() {
-        if accounts.len() < 5 {
+        if accounts.len() < 7 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        // Validate referrer's miner account
-        let miner_referrer_idx = 3;
+        let miner_referrer_idx = 5;
         let miner_referrer_info = &accounts[miner_referrer_idx];
         miner_referrer_info
             .has_seeds(&[MINER, &miner.referrer.to_bytes()], &oil_api::ID)?;
 
-        // Validate referrer's referral account
-        let referral_referrer_idx = 4;
+        let referral_referrer_idx = 6;
         let referral_referrer_info = &accounts[referral_referrer_idx];
         referral_referrer_info
             .has_seeds(&[REFERRAL, &miner.referrer.to_bytes()], &oil_api::ID)?;
         
-        // Get referral account and calculate/credit referral bonus
         let referral_referrer = referral_referrer_info
             .as_account_mut::<Referral>(&oil_api::ID)?;
         
-        // Calculate and credit referral bonus (0.5% of total claim)
         referral_referrer.credit_sol_referral(total_amount)
     } else {
         0
     };
 
-    // Calculate amount to send to authority (after referral deduction).
     let authority_amount = total_amount.saturating_sub(referral_amount);
 
     sol_log(&format!("Claiming {} SOL", lamports_to_sol(total_amount)).as_str());
 
-    // Transfer authority's portion from miner account to signer (user's wallet).
     if authority_amount > 0 {
-        miner_info.send(authority_amount, signer_info);
+        miner_info.send(authority_amount, authority_info);
     }
     
-    // Transfer referral SOL directly to referral account PDA from miner account.
     if referral_amount > 0 {
-        let referral_referrer_info = &accounts[4];
+        let referral_referrer_info = &accounts[6];
         
-        // Transfer SOL from miner to referral account
         miner_info.send(referral_amount, referral_referrer_info);
         
         sol_log(&format!(

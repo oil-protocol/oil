@@ -1,11 +1,12 @@
 use oil_api::prelude::*;
-use oil_api::consts::AUCTION_FLOOR_PRICE;
+use oil_api::consts::{SOL_MINT, AUCTION_FLOOR_PRICE};
 use oil_api::instruction::PlaceBid;
+use oil_api::fogo;
+use oil_api::utils::create_or_validate_wrapped_sol_ata;
 use solana_program::{log::sol_log, native_token::lamports_to_sol};
 use steel::*;
 
-/// Direct solo bid on an auction well (seize ownership)
-pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
+pub fn process_place_bid_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: &[u8]) -> ProgramResult {
     let clock = Clock::get()?;
     let args = PlaceBid::try_from_bytes(data)?;
     let well_id = u64::from_le_bytes(args.square_id) as usize;
@@ -16,25 +17,41 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     }
 
     let has_referral = referrer != Pubkey::default();
-    let expected_len = 17 + if has_referral { 1 } else { 0 };
+    let base_accounts_count = 19;
+    let referral_offset = if has_referral { 1 } else { 0 };
+    let wrapped_token_accounts_count = 5;
+    let min_accounts = base_accounts_count + referral_offset + wrapped_token_accounts_count;
     
-    if accounts.len() < expected_len {
+    if accounts.len() < min_accounts {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     
     let mut accounts_iter = accounts.iter();
-    oil_api::extract_accounts!(accounts_iter, [s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom]);
+    oil_api::extract_accounts!(accounts_iter, [s, a, ps, pay, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom]);
     let ref_info = if has_referral { accounts_iter.next() } else { None };
-    let (signer_info, authority_info, well_info, auction_info, 
+    let (signer_info, authority_info, program_signer_info, payer_info, well_info, auction_info, 
          treasury_info, treasury_tokens_info, mint_info, mint_authority_info, mint_program, staking_pool_info, 
          fee_collector_info, config_info, token_program, system_program, oil_program, bidder_miner_info, 
          previous_owner_miner_info, referral_info_opt) = 
-         (s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, ref_info);
+         (s, a, ps, pay, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, ref_info);
 
     signer_info.is_signer()?;
+    
+    fogo::validate_session(signer_info)?;
+    fogo::validate_program_signer(program_signer_info)?;
+    
     let authority = *authority_info.key;
     
-    // Validate accounts
+    let wrapped_start = base_accounts_count + referral_offset;
+    let wrapped_end = wrapped_start + wrapped_token_accounts_count;
+    if accounts.len() < wrapped_end {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    let [user_wrapped_sol_info, treasury_wrapped_sol_info, token_program_wrapped, mint_info_wrapped, 
+         associated_token_program_wrapped] = &accounts[wrapped_start..wrapped_end] else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+    
     let well = well_info.is_writable()?
         .has_seeds(&[WELL, &(well_id as u64).to_le_bytes()], &oil_api::ID)?
         .as_account_mut::<Well>(&oil_api::ID)?;
@@ -63,7 +80,7 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
         create_program_account::<Miner>(
             bidder_miner_info,
             system_program,
-            signer_info,
+            payer_info,
             &oil_api::ID,
             &[MINER, &authority.to_bytes()],
         )?;
@@ -92,24 +109,80 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     let has_previous_owner = previous_owner != Pubkey::default();
     let accumulated_oil = if has_previous_owner { well.accumulated_oil } else { 0 };
 
-    let buyback_amount = (bid_amount * 7) / 100; // 7% buyback & burn
-    let liquidity_amount = (bid_amount * 3) / 100; // 3% liquidity
-    let staking_amount = (bid_amount * 3) / 100; // 3% staking
-    // During premine: 2% dev fee, otherwise 1% (extra 1% comes from previous owner's refund)
+    let buyback_amount = (bid_amount * 7) / 100;
+    let liquidity_amount = (bid_amount * 3) / 100;
+    let staking_amount = (bid_amount * 3) / 100;
     let dev_fee_rate = if is_premine { 2 } else { 1 };
     let dev_fee_amount = (bid_amount * dev_fee_rate) / 100;
     let total_protocol_revenue = buyback_amount + liquidity_amount + staking_amount + dev_fee_amount;
     let previous_owner_amount = bid_amount.saturating_sub(total_protocol_revenue);
 
-    treasury_info.collect(bid_amount, signer_info)?;
+    create_or_validate_wrapped_sol_ata(
+        user_wrapped_sol_info,
+        authority_info,
+        mint_info_wrapped,
+        payer_info,
+        system_program,
+        token_program_wrapped,
+        associated_token_program_wrapped,
+        None,
+    )?;
     
-    treasury.balance += buyback_amount;
-    treasury.liquidity += liquidity_amount;
-    if has_previous_owner && previous_owner_amount > 0 {
-        treasury.auction_rewards_sol += previous_owner_amount;
+    token_program_wrapped.is_program(&spl_token::ID)?;
+    mint_info_wrapped.has_address(&SOL_MINT)?.as_mint()?;
+    associated_token_program_wrapped.is_program(&spl_associated_token_account::ID)?;
+    
+    create_or_validate_wrapped_sol_ata(
+        treasury_wrapped_sol_info,
+        treasury_info,
+        mint_info_wrapped,
+        payer_info,
+        system_program,
+        token_program_wrapped,
+        associated_token_program_wrapped,
+        None,
+    )?;
+    
+    let total_wrapped_amount = total_protocol_revenue + previous_owner_amount;
+    
+    if total_wrapped_amount > 0 {
+        fogo::transfer_wrapped_sol(
+            signer_info,
+            program_signer_info,
+            total_wrapped_amount,
+            user_wrapped_sol_info,
+            treasury_wrapped_sol_info,
+            mint_info_wrapped,
+            token_program_wrapped,
+        )?;
+        
+        let close_ix = spl_token::instruction::close_account(
+            token_program_wrapped.key,
+            treasury_wrapped_sol_info.key,
+            treasury_info.key,
+            treasury_info.key,
+            &[],
+        )?;
+        let treasury_seeds: &[&[u8]] = &[TREASURY];
+        invoke_signed(
+            &close_ix,
+            &[
+                treasury_wrapped_sol_info.clone(),
+                treasury_info.clone(),
+                treasury_info.clone(),
+                token_program_wrapped.clone(),
+            ],
+            &oil_api::ID,
+            treasury_seeds,
+        )?;
+        
+        treasury.balance += buyback_amount;
+        treasury.liquidity += liquidity_amount;
+        if has_previous_owner && previous_owner_amount > 0 {
+            treasury.auction_rewards_sol += previous_owner_amount;
+        }
     }
     
-    // Update previous owner miner (if has previous owner)
     if has_previous_owner {
         previous_owner_miner_info.is_writable()?
             .has_seeds(&[MINER, &previous_owner.to_bytes()], &oil_api::ID)?;
@@ -159,7 +232,6 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     well.mps = auction.base_mining_rates[well_id];
     well.check_and_apply_halving(auction, &clock);
     
-    // Validate auction account right before auction_program_log (matching pattern from claim_auction_sol.rs)
     auction_info
         .is_writable()?
         .has_seeds(&[AUCTION], &oil_api::ID)?;
