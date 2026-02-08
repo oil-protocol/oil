@@ -1500,3 +1500,137 @@ pub fn withdraw_with_session(
         .to_bytes(),
     }
 }
+
+pub fn deposit_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+    amount: u64,
+    lock_duration_days: u64,
+    stake_id: u64,
+) -> Instruction {
+    let mint_address = MINT_ADDRESS;
+    let stake_address = stake_pda_with_id(authority, stake_id).0;
+    let stake_tokens_address = get_associated_token_address(&stake_address, &MINT_ADDRESS);
+    let sender_address = get_associated_token_address(&authority, &MINT_ADDRESS);
+    let pool_address = pool_pda().0;
+    let pool_tokens_address = pool_tokens_address();
+    let miner_address = miner_pda(authority).0;
+    
+    let mut data = Deposit {
+        amount: amount.to_le_bytes(),
+        lock_duration_days: lock_duration_days.to_le_bytes(),
+        stake_id: stake_id.to_le_bytes(),
+    }
+    .to_bytes();
+    data[0] = 48u8; // DepositWithSession = 48
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts: vec![
+            AccountMeta::new(signer, true), // 0: signer (session account)
+            AccountMeta::new(authority, false), // 1: authority (user's wallet)
+            AccountMeta::new_readonly(program_signer, false), // 2: program_signer
+            AccountMeta::new(payer, false), // 3: payer (paymaster sponsor)
+            AccountMeta::new(mint_address, false), // 4: mint
+            AccountMeta::new(sender_address, false), // 5: sender (authority's OIL ATA)
+            AccountMeta::new(stake_address, false), // 6: stake
+            AccountMeta::new(stake_tokens_address, false), // 7: stake_tokens
+            AccountMeta::new(pool_address, false), // 8: pool
+            AccountMeta::new(pool_tokens_address, false), // 9: pool_tokens
+            AccountMeta::new(miner_address, false), // 10: miner
+            AccountMeta::new_readonly(system_program::ID, false), // 11: system_program
+            AccountMeta::new_readonly(spl_token::ID, false), // 12: token_program
+            AccountMeta::new_readonly(spl_associated_token_account::ID, false), // 13: associated_token_program
+        ],
+        data,
+    }
+}
+
+pub fn claim_yield_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    amount: u64,
+    stake_id: u64,
+) -> Instruction {
+    let stake_address = stake_pda_with_id(authority, stake_id).0;
+    let pool_address = pool_pda().0;
+    
+    let mut data = ClaimYield {
+        amount: amount.to_le_bytes(),
+    }
+    .to_bytes();
+    data[0] = 51u8; // ClaimYieldWithSession = 51
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts: vec![
+            AccountMeta::new(signer, true), // 0: signer (session account)
+            AccountMeta::new(authority, true), // 1: authority (user's wallet, writable for receiving SOL)
+            AccountMeta::new_readonly(program_signer, false), // 2: program_signer
+            AccountMeta::new(stake_address, false), // 3: stake
+            AccountMeta::new(pool_address, false), // 4: pool
+            AccountMeta::new_readonly(system_program::ID, false), // 5: system_program
+        ],
+        data,
+    }
+}
+
+pub fn create_referral_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+) -> Instruction {
+    let referral_address = referral_pda(authority).0;
+    
+    // CreateReferralWithSession = 49
+    let data = vec![49u8];
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts: vec![
+            AccountMeta::new(signer, true), // 0: signer (session account)
+            AccountMeta::new(authority, false), // 1: authority (user's wallet)
+            AccountMeta::new_readonly(program_signer, false), // 2: program_signer
+            AccountMeta::new(payer, false), // 3: payer (paymaster sponsor)
+            AccountMeta::new(referral_address, false), // 4: referral
+            AccountMeta::new_readonly(system_program::ID, false), // 5: system_program
+        ],
+        data,
+    }
+}
+
+pub fn claim_referral_with_session(
+    signer: Pubkey,
+    authority: Pubkey,
+    program_signer: Pubkey,
+    payer: Pubkey,
+) -> Instruction {
+    let referral_address = referral_pda(authority).0;
+    let referral_oil_address = get_associated_token_address(&referral_address, &MINT_ADDRESS);
+    let recipient_oil_address = get_associated_token_address(&authority, &MINT_ADDRESS);
+    
+    // ClaimReferralWithSession = 50
+    let data = vec![50u8];
+    
+    Instruction {
+        program_id: crate::ID,
+        accounts: vec![
+            AccountMeta::new(signer, true), // 0: signer (session account)
+            AccountMeta::new(authority, false), // 1: authority (user's wallet, receives SOL)
+            AccountMeta::new_readonly(program_signer, false), // 2: program_signer
+            AccountMeta::new(payer, false), // 3: payer (paymaster sponsor)
+            AccountMeta::new(referral_address, false), // 4: referral
+            AccountMeta::new(referral_oil_address, false), // 5: referral_tokens (Referral account's OIL ATA)
+            AccountMeta::new(MINT_ADDRESS, false), // 6: mint
+            AccountMeta::new(recipient_oil_address, false), // 7: recipient (Recipient's OIL ATA - authority's wallet)
+            AccountMeta::new_readonly(system_program::ID, false), // 8: system_program
+            AccountMeta::new_readonly(spl_token::ID, false), // 9: token_program
+            AccountMeta::new_readonly(spl_associated_token_account::ID, false), // 10: associated_token_program
+        ],
+        data,
+    }
+}

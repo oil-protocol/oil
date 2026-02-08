@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use entropy_rng_api::prelude::*;
 // Jupiter swap imports removed - unused
 use oil_api::prelude::*;
-use oil_api::state::Bid;
+use oil_api::state::Share;
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     client_error::{reqwest::StatusCode, ClientErrorKind},
@@ -900,6 +900,14 @@ async fn log_treasury(rpc: &RpcClient) -> Result<(), anyhow::Error> {
         "  liquidity: {} SOL",
         lamports_to_sol(treasury.liquidity)
     );
+    println!(
+        "  buffer_b: {}",
+        treasury.buffer_b
+    );
+    println!(
+        "  auction_total_pooled: {} SOL",
+        lamports_to_sol(treasury.auction_total_pooled)
+    );
     
     Ok(())
 }
@@ -1116,7 +1124,7 @@ async fn verify_migration(rpc: &RpcClient) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-/// Migrate: Extend Treasury struct with liquidity field.
+/// Migrate: Extend Treasury struct with 2 u64 fields (buffer_b and auction_total_pooled).
 async fn migrate(
     rpc: &RpcClient,
     payer: &solana_sdk::signer::keypair::Keypair,
@@ -1128,7 +1136,7 @@ async fn migrate(
 
     // Check current treasury
     let treasury_account = rpc.get_account(&treasury_address).await?;
-    let expected_treasury_size = 128; // 8 discriminator + 120 data bytes (old was 120 total)
+    let expected_treasury_size = 144; // 8 discriminator + 136 data bytes (adding 2 u64 fields = 16 bytes)
     
     println!("\n📊 Current State:");
     println!("   Treasury account size: {} bytes", treasury_account.data.len());
@@ -1138,12 +1146,12 @@ async fn migrate(
     
     if is_migrated {
         println!("   Status: ✅ Already migrated");
-        println!("\n   ✅ No migration needed. Treasury already has liquidity field.");
+        println!("\n   ✅ No migration needed. Treasury already has buffer_b and auction_total_pooled fields.");
         return Ok(());
     }
     
     println!("   Status: ⚠️  Needs migration");
-    println!("\n   📦 Will extend Treasury struct with liquidity field (u64, 8 bytes)");
+    println!("\n   📦 Will extend Treasury struct with 2 u64 fields (buffer_b and auction_total_pooled, 16 bytes total)");
     
     // Build migrate instruction
     let migrate_ix = oil_api::sdk::migrate(payer.pubkey());
@@ -1220,8 +1228,8 @@ async fn migrate(
     println!("   Treasury account size after: {} bytes", treasury_account_after.data.len());
     
     if is_migrated_after {
-        println!("   ✅ Treasury migration successful! liquidity field is now available.");
-        println!("   Note: The liquidity field will be initialized to 0.");
+        println!("   ✅ Treasury migration successful! buffer_b and auction_total_pooled fields are now available.");
+        println!("   Note: The new fields will be initialized to 0.");
     } else {
         println!("   ⚠️  Migration may have failed. Treasury size didn't increase as expected.");
         println!("   Check transaction logs for details.");
@@ -1508,20 +1516,22 @@ async fn log_bid(
         .and_then(|s| u64::from_str(&s).ok())
         .unwrap_or(0);
     
-    let (bid_address, _) = oil_api::state::bid_pda(authority, well_id, epoch_id);
+    let (share_address, _) = oil_api::state::share_pda(authority, well_id, epoch_id);
     
-    match get_bid(rpc, authority, well_id, epoch_id).await {
-        Ok(bid) => {
-            println!("Bid (Auction Pool Contribution)");
-            println!("  address: {}", bid_address);
-            println!("  authority: {}", bid.authority);
-            println!("  well_id: {}", bid.well_id);
-            println!("  epoch_id: {}", bid.epoch_id);
-            println!("  contribution: {} SOL", lamports_to_sol(bid.contribution));
-            println!("  created_at: {}", bid.created_at);
+    match get_share(rpc, authority, well_id, epoch_id).await {
+        Ok(share) => {
+            println!("Share (Auction Pool Contribution)");
+            println!("  address: {}", share_address);
+            println!("  authority: {}", share.authority);
+            println!("  well_id: {}", share.well_id);
+            println!("  epoch_id: {}", share.epoch_id);
+            println!("  contribution: {} SOL", lamports_to_sol(share.contribution));
+            println!("  created_at: {}", share.created_at);
+            println!("  claimed_oil: {} OIL", share.claimed_oil);
+            println!("  claimed_sol: {} SOL", lamports_to_sol(share.claimed_sol));
         }
         Err(e) => {
-            println!("Bid account not found");
+            println!("Share account not found");
             println!("  Authority: {}", authority);
             println!("  Well ID: {}", well_id);
             println!("  Epoch ID: {}", epoch_id);
@@ -1813,14 +1823,14 @@ async fn get_well(rpc: &RpcClient, well_id: u64) -> Result<Well, anyhow::Error> 
     Ok(*well)
 }
 
-async fn get_bid(rpc: &RpcClient, authority: Pubkey, well_id: u64, epoch_id: u64) -> Result<Bid, anyhow::Error> {
-    let (bid_pda, _) = oil_api::state::bid_pda(authority, well_id, epoch_id);
-    let account = rpc.get_account(&bid_pda).await?;
+async fn get_share(rpc: &RpcClient, authority: Pubkey, well_id: u64, epoch_id: u64) -> Result<Share, anyhow::Error> {
+    let (share_pda, _) = oil_api::state::share_pda(authority, well_id, epoch_id);
+    let account = rpc.get_account(&share_pda).await?;
     if account.data.is_empty() {
-        return Err(anyhow::anyhow!("Bid account not found"));
+        return Err(anyhow::anyhow!("Share account not found"));
     }
-    let bid = Bid::try_from_bytes(&account.data)?;
-    Ok(*bid)
+    let share = Share::try_from_bytes(&account.data)?;
+    Ok(*share)
 }
 
 async fn get_auction(rpc: &RpcClient) -> Result<Auction, anyhow::Error> {

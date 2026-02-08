@@ -62,17 +62,8 @@ pub const CONFIG: &[u8] = b"config";
 /// The seed of the miner account PDA.
 pub const MINER: &[u8] = b"miner";
 
-/// The seed of the rig account PDA (auction-based mining).
-pub const RIG: &[u8] = b"rig";
-
 /// The seed of the referral account PDA.
 pub const REFERRAL: &[u8] = b"referral";
-
-/// The seed of the seeker account PDA.
-pub const SEEKER: &[u8] = b"seeker";
-
-/// The seed of the square account PDA.
-pub const SQUARE: &[u8] = b"square";
 
 /// The seed of the stake account PDA.
 pub const STAKE: &[u8] = b"stake";
@@ -89,14 +80,20 @@ pub const POOL: &[u8] = b"pool";
 /// The seed of the well account PDA.
 pub const WELL: &[u8] = b"well";
 
-/// The seed of the bid account PDA.
-pub const BID: &[u8] = b"bid";
-
 /// The seed of the auction account PDA.
 pub const AUCTION: &[u8] = b"auction";
 
-/// The seed of the square account PDA (auction state per well).
-pub const EPOCH: &[u8] = b"epoch";
+/// The seed of the whitelist account PDA.
+pub const WHITELIST: &[u8] = b"whitelist";
+
+/// The seed of the rig account PDA (auction-based mining).
+pub const RIG: &[u8] = b"rig";
+
+/// The seed of the micro account PDA (per-epoch auction state).
+pub const MICRO: &[u8] = b"micro";
+
+/// The seed of the share account PDA (per-user, per-epoch auction contribution).
+pub const SHARE: &[u8] = b"share";
 
 /// Program id for const pda derivations
 const PROGRAM_ID: [u8; 32] = unsafe { *(&crate::id() as *const Pubkey as *const [u8; 32]) };

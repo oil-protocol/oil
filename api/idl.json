@@ -1,1625 +1,2602 @@
 {
-    "version": "0.0.1",
-    "name": "oil",
-    "instructions": [
+  "version": "0.0.1",
+  "name": "oil",
+  "instructions": [
+    {
+      "accounts": [],
+      "args": [
         {
-            "name": "automate",
-            "discriminant": {
-                "type": "u8",
-                "value": 0
-            },
-            "docs": [
-                "Configures or closes a miner automation account.",
-                "Automation PDA seeds: [\"automation\", signer].",
-                "Miner PDA seeds: [\"miner\", signer]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "automation",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "executor",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "miner",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": [
-                {
-                    "name": "amount",
-                    "type": "u64"
-                },
-                {
-                    "name": "deposit",
-                    "type": "u64"
-                },
-                {
-                    "name": "fee",
-                    "type": "u64"
-                },
-                {
-                    "name": "mask",
-                    "type": "u64"
-                },
-                {
-                    "name": "strategy",
-                    "type": "u8"
-                }
-            ]
+          "name": "amount",
+          "type": "u64"
         },
         {
-            "name": "checkpoint",
-            "discriminant": {
-                "type": "u8",
-                "value": 2
-            },
-            "docs": [
-                "Settles miner rewards for a completed round.",
-                "Treasury PDA seeds: [\"treasury\"]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "board",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "miner",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "round",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": []
+          "name": "deposit",
+          "type": "u64"
         },
         {
-            "name": "claimSol",
-            "discriminant": {
-                "type": "u8",
-                "value": 3
-            },
-            "docs": [
-                "Claims SOL rewards from the miner account."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "miner",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": []
+          "name": "fee",
+          "type": "u64"
         },
         {
-            "name": "claimOil",
-            "discriminant": {
-                "type": "u8",
-                "value": 4
-            },
-            "docs": [
-                "Claims OIL token rewards from the treasury vault."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "miner",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "mint",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy"
-                },
-                {
-                    "name": "recipient",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasuryTokens",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                },
-                {
-                    "name": "tokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                },
-                {
-                    "name": "associatedTokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-                }
-            ],
-            "args": []
+          "name": "mask",
+          "type": "u64"
         },
         {
-            "name": "close",
-            "discriminant": {
-                "type": "u8",
-                "value": 5
-            },
-            "docs": [
-                "Closes an expired round account and returns rent to the payer.",
-                "Round PDA seeds: [\"round\", round_id].",
-                "Treasury PDA seeds: [\"treasury\"]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": false,
-                    "isSigner": true
-                },
-                {
-                    "name": "board",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "rentPayer",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "round",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": []
+          "name": "strategy",
+          "type": "u8"
         },
         {
-            "name": "deploy",
-            "discriminant": {
-                "type": "u8",
-                "value": 6
-            },
-            "docs": [
-                "Deploys SOL to selected squares for the current round.",
-                "Automation PDA seeds: [\"automation\", authority].",
-                "Config PDA seeds: [\"config\"].",
-                "Miner PDA seeds: [\"miner\", authority].",
-                "Round PDA seeds: [\"round\", board.round_id]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "authority",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "automation",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "board",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "config",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "miner",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "round",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                },
-                {
-                    "name": "oilProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "rigwXYKkE8rXiiyu6eFs3ZuDNH2eYHb1y87tYqwDJhk"
-                },
-                {
-                    "name": "entropyVar",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "entropyProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "entKqCR5XTEfAkqsZpzfsrhCXhDegUKoxm57C7zPzXj"
-                }
-            ],
-            "args": [
-                {
-                    "name": "amount",
-                    "type": "u64"
-                },
-                {
-                    "name": "squares",
-                    "type": "u32"
-                }
-            ]
+          "name": "reload",
+          "type": "u64"
         },
         {
-            "name": "log",
-            "discriminant": {
-                "type": "u8",
-                "value": 8
-            },
-            "docs": [
-                "Emits an arbitrary log message from the board PDA.",
-                "Bytes following the discriminator are logged verbatim."
-            ],
-            "accounts": [
-                {
-                    "name": "board",
-                    "isMut": false,
-                    "isSigner": true
-                }
-            ],
-            "args": []
+          "name": "referrer",
+          "type": "publicKey"
         },
         {
-            "name": "reset",
-            "discriminant": {
-                "type": "u8",
-                "value": 9
-            },
-            "docs": [
-                "Finalizes the current round, mints rewards, and opens the next round.",
-                "Board PDA seeds: [\"board\"].",
-                "Treasury PDA seeds: [\"treasury\"].",
-                "Round PDA seeds: [\"round\", board.round_id] and [\"round\", board.round_id + 1]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "board",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "config",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "feeCollector",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "mint",
-                    "isMut": true,
-                    "isSigner": false,
-                    "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy"
-                },
-                {
-                    "name": "round",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "roundNext",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "topMiner",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasuryTokens",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                },
-                {
-                    "name": "tokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                },
-                {
-                    "name": "oilProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "rigwXYKkE8rXiiyu6eFs3ZuDNH2eYHb1y87tYqwDJhk"
-                },
-                {
-                    "name": "slotHashesSysvar",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "SysvarS1otHashes111111111111111111111111111"
-                },
-                {
-                    "name": "entropyVar",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "entropyProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "entKqCR5XTEfAkqsZpzfsrhCXhDegUKoxm57C7zPzXj"
-                }
-            ],
-            "args": []
-        },
-        {
-            "name": "deposit",
-            "discriminant": {
-                "type": "u8",
-                "value": 10
-            },
-            "docs": [
-                "Deposits OIL into a staking account.",
-                "Stake PDA seeds: [\"stake\", signer]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "mint",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy"
-                },
-                {
-                    "name": "sender",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "stake",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "stakeTokens",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                },
-                {
-                    "name": "tokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                },
-                {
-                    "name": "associatedTokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-                }
-            ],
-            "args": [
-                {
-                    "name": "amount",
-                    "type": "u64"
-                }
-            ]
-        },
-        {
-            "name": "withdraw",
-            "discriminant": {
-                "type": "u8",
-                "value": 11
-            },
-            "docs": [
-                "Withdraws OIL from a staking account.",
-                "Stake PDA seeds: [\"stake\", signer]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "mint",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy"
-                },
-                {
-                    "name": "recipient",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "stake",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "stakeTokens",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                },
-                {
-                    "name": "tokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                },
-                {
-                    "name": "associatedTokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-                }
-            ],
-            "args": [
-                {
-                    "name": "amount",
-                    "type": "u64"
-                }
-            ]
-        },
-        {
-            "name": "claimYield",
-            "discriminant": {
-                "type": "u8",
-                "value": 12
-            },
-            "docs": [
-                "Claims accrued staking rewards.",
-                "Stake PDA seeds: [\"stake\", signer].",
-                "Treasury PDA seeds: [\"treasury\"]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": true,
-                    "isSigner": true
-                },
-                {
-                    "name": "mint",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy"
-                },
-                {
-                    "name": "recipient",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "stake",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasuryTokens",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                },
-                {
-                    "name": "tokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                },
-                {
-                    "name": "associatedTokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-                }
-            ],
-            "args": [
-                {
-                    "name": "amount",
-                    "type": "u64"
-                }
-            ]
-        },
-        {
-            "name": "barrel",
-            "discriminant": {
-                "type": "u8",
-                "value": 13
-            },
-            "docs": [
-                "Swaps vaulted SOL for OIL via a CPI and burns the proceeds.",
-                "Treasury PDA seeds: [\"treasury\"].",
-                "Additional swap accounts are passed through as remaining accounts."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": false,
-                    "isSigner": true
-                },
-                {
-                    "name": "board",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "config",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "mint",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy"
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasuryOil",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasurySol",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "tokenProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                },
-                {
-                    "name": "oilProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "rigwXYKkE8rXiiyu6eFs3ZuDNH2eYHb1y87tYqwDJhk"
-                }
-            ],
-            "args": []
-        },
-        {
-            "name": "wrap",
-            "discriminant": {
-                "type": "u8",
-                "value": 14
-            },
-            "docs": [
-                "Wraps SOL held by the treasury into WSOL for swapping.",
-                "Treasury PDA seeds: [\"treasury\"]."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": false,
-                    "isSigner": true
-                },
-                {
-                    "name": "config",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasury",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "treasurySol",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": []
-        },
-        {
-            "name": "setAdmin",
-            "discriminant": {
-                "type": "u8",
-                "value": 15
-            },
-            "docs": [
-                "Updates the program admin address."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": false,
-                    "isSigner": true
-                },
-                {
-                    "name": "config",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": [
-                {
-                    "name": "admin",
-                    "type": "publicKey"
-                }
-            ]
-        },
-        {
-            "name": "setFeeCollector",
-            "discriminant": {
-                "type": "u8",
-                "value": 16
-            },
-            "docs": [
-                "Updates the fee collector authority."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": false,
-                    "isSigner": true
-                },
-                {
-                    "name": "config",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": [
-                {
-                    "name": "feeCollector",
-                    "type": "publicKey"
-                }
-            ]
-        },
-        {
-            "name": "newVar",
-            "discriminant": {
-                "type": "u8",
-                "value": 17
-            },
-            "docs": [
-                "Creates a new entropy var account through the entropy program."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": false,
-                    "isSigner": true
-                },
-                {
-                    "name": "board",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "config",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "provider",
-                    "isMut": false,
-                    "isSigner": false
-                },
-                {
-                    "name": "var",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                },
-                {
-                    "name": "entropyProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "entKqCR5XTEfAkqsZpzfsrhCXhDegUKoxm57C7zPzXj"
-                }
-            ],
-            "args": [
-                {
-                    "name": "id",
-                    "type": "u64"
-                },
-                {
-                    "name": "commit",
-                    "type": {
-                        "array": [
-                            "u8",
-                            32
-                        ]
-                    }
-                },
-                {
-                    "name": "samples",
-                    "type": "u64"
-                }
-            ]
-        },
-        {
-            "name": "setBuffer",
-            "discriminant": {
-                "type": "u8",
-                "value": 18
-            },
-            "docs": [
-                "Updates the global buffer value."
-            ],
-            "accounts": [
-                {
-                    "name": "signer",
-                    "isMut": false,
-                    "isSigner": true
-                },
-                {
-                    "name": "config",
-                    "isMut": true,
-                    "isSigner": false
-                },
-                {
-                    "name": "systemProgram",
-                    "isMut": false,
-                    "isSigner": false,
-                    "address": "11111111111111111111111111111111"
-                }
-            ],
-            "args": [
-                {
-                    "name": "buffer",
-                    "type": "u64"
-                }
-            ]
+          "name": "pooled",
+          "type": "u8"
         }
-    ],
-    "accounts": [
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      },
+      "docs": [
+        "Sets the executor."
+      ],
+      "name": "automate"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 40
+      },
+      "docs": [
+        "Sets the executor."
+      ],
+      "name": "automateWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [
         {
-            "name": "Automation",
-            "discriminator": [
-                100,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "docs": [
-                "Automation parameters for automated mining deployments."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "amount",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "authority",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "balance",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "executor",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "fee",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "strategy",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "mask",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "reload",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "pooled",
-                        "type": "u64"
-                    }
-                ]
-            }
+          "name": "barrel_authority",
+          "type": "publicKey"
         },
         {
-            "name": "Board",
-            "discriminator": [
-                105,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "docs": [
-                "Global round tracking for the mining game."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "round_id",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "start_slot",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "end_slot",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "epoch_id",
-                        "type": "u64"
-                    }
-                ]
-            }
+          "name": "fee_collector",
+          "type": "publicKey"
         },
         {
-            "name": "Config",
-            "discriminator": [
-                101,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "docs": [
-                "Program configuration state."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "admin",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "barrel_authority",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "fee_collector",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "swap_program",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "var_address",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "buffer",
-                        "type": "u64"
-                    }
-                ]
-            }
+          "name": "swap_program",
+          "type": "publicKey"
         },
         {
-            "name": "Miner",
-            "discriminator": [
-                103,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "docs": [
-                "Tracks a miner's deployed SOL and reward balances."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "authority",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "deployed",
-                        "type": {
-                            "array": [
-                                "u64",
-                                25
-                            ]
-                        }
-                    },
-                    {
-                        "name": "cumulative",
-                        "type": {
-                            "array": [
-                                "u64",
-                                25
-                            ]
-                        }
-                    },
-                    {
-                        "name": "checkpoint_fee",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "checkpoint_id",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "last_claim_block_oil_at",
-                        "type": "i64"
-                    },
-                    {
-                        "name": "last_claim_block_sol_at",
-                        "type": "i64"
-                    },
-                    {
-                        "name": "rewards_factor",
-                        "type": {
-                            "defined": "Numeric"
-                        }
-                    },
-                    {
-                        "name": "rewards_sol",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "rewards_oil",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "refined_oil",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "round_id",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "lifetime_rewards_sol",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "lifetime_rewards_oil",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "lifetime_deployed",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "referrer",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "pooled_deployed",
-                        "type": "u64"
-                    }
-                ]
-            }
+          "name": "var_address",
+          "type": "publicKey"
         },
         {
-            "name": "Round",
-            "discriminator": [
-                109,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "docs": [
-                "State for a single mining round."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "id",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "deployed",
-                        "type": {
-                            "array": [
-                                "u64",
-                                25
-                            ]
-                        }
-                    },
-                    {
-                        "name": "slot_hash",
-                        "type": {
-                            "array": [
-                                "u8",
-                                32
-                            ]
-                        }
-                    },
-                    {
-                        "name": "count",
-                        "type": {
-                            "array": [
-                                "u64",
-                                25
-                            ]
-                        }
-                    },
-                    {
-                        "name": "expires_at",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "rent_payer",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "top_miner",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "top_miner_reward",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "total_deployed",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "total_miners",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "total_vaulted",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "total_winnings",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "gusher_sol",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "deployed_pooled",
-                        "type": {
-                            "array": [
-                                "u64",
-                                25
-                            ]
-                        }
-                    },
-                    {
-                        "name": "total_pooled",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "pool_rewards_sol",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "pool_rewards_oil",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "pool_members",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "padding",
-                        "type": "u64"
-                    }
-                ]
-            }
+          "name": "admin_fee",
+          "type": "u64"
         },
         {
-            "name": "Stake",
-            "discriminator": [
-                108,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "docs": [
-                "State for a staking participant."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "authority",
-                        "type": "publicKey"
-                    },
-                    {
-                        "name": "balance",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "lock_duration_days",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "lock_ends_at",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "buffer_c",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "buffer_d",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "buffer_e",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "last_claim_at",
-                        "type": "i64"
-                    },
-                    {
-                        "name": "last_deposit_at",
-                        "type": "i64"
-                    },
-                    {
-                        "name": "last_withdraw_at",
-                        "type": "i64"
-                    },
-                    {
-                        "name": "rewards_factor",
-                        "type": {
-                            "defined": "Numeric"
-                        }
-                    },
-                    {
-                        "name": "rewards",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "lifetime_rewards",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "buffer_f",
-                        "type": "u64"
-                    }
-                ]
-            }
+          "name": "halving_period_seconds",
+          "type": "u64"
         },
         {
-            "name": "Treasury",
-            "discriminator": [
-                104,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "docs": [
-                "Singleton treasury account tracking protocol balances."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "balance",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "gusher_sol",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "block_rewards_factor",
-                        "type": {
-                            "defined": "Numeric"
-                        }
-                    },
-                    {
-                        "name": "stake_rewards_factor",
-                        "type": {
-                            "defined": "Numeric"
-                        }
-                    },
-                    {
-                        "name": "total_staked_score",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "block_total_refined",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "total_staked",
-                        "type": "u64"
-                    },
-                    {
-                        "name": "block_total_unclaimed",
-                        "type": "u64"
-                    }
-                ]
-            }
+          "name": "base_mining_rates",
+          "type": "u64"
         },
         {
-            "name": "Referral",
-            "discriminator": [
-                100,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "fields": [
-                {
-                    "name": "authority",
-                    "type": "publicKey"
-                },
-                {
-                    "name": "total_referred",
-                    "type": "u64"
-                },
-                {
-                    "name": "total_sol_earned",
-                    "type": "u64"
-                },
-                {
-                    "name": "total_oil_earned",
-                    "type": "u64"
-                },
-                {
-                    "name": "pending_sol",
-                    "type": "u64"
-                },
-                {
-                    "name": "pending_oil",
-                    "type": "u64"
-                }
-            ]
+          "name": "auction_duration_seconds",
+          "type": "u64"
+        },
+        {
+          "name": "starting_prices",
+          "type": "u64"
         }
-    ],
-    "types": [
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      },
+      "docs": [
+        "Initializes the program."
+      ],
+      "name": "initialize"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      },
+      "docs": [
+        "Checkpoints a miner's rewards."
+      ],
+      "name": "checkpoint"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 52
+      },
+      "docs": [
+        "Checkpoints a miner's rewards."
+      ],
+      "name": "checkpointWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 3
+      },
+      "docs": [],
+      "name": "claimSol"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 44
+      },
+      "docs": [],
+      "name": "claimSolwithSession"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 4
+      },
+      "docs": [],
+      "name": "claimOil"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 45
+      },
+      "docs": [],
+      "name": "claimOilwithSession"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      },
+      "docs": [
+        "Closes a round account, and returns the rent to the rent payer."
+      ],
+      "name": "close"
+    },
+    {
+      "accounts": [],
+      "args": [
         {
-            "name": "Numeric",
-            "docs": [
-                "Fixed-point helper backed by I80F48 from the steel crate."
-            ],
-            "type": {
-                "kind": "struct",
-                "fields": [
-                    {
-                        "name": "bits",
-                        "type": {
-                            "array": [
-                                "u8",
-                                16
-                            ]
-                        }
-                    }
-                ]
-            }
-        }
-    ],
-    "events": [
-        {
-            "name": "ResetEvent",
-            "discriminator": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "fields": [
-                {
-                    "name": "disc",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "round_id",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "start_slot",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "end_slot",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "winning_square",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "top_miner",
-                    "type": "publicKey",
-                    "index": false
-                },
-                {
-                    "name": "num_winners",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "total_deployed",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "total_vaulted",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "total_winnings",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "total_minted",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "ts",
-                    "type": "i64",
-                    "index": false
-                }
-            ]
+          "name": "amount",
+          "type": "u64"
         },
         {
-            "name": "BarrelEvent",
-            "discriminator": [
-                1,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "fields": [
-                {
-                    "name": "disc",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "oil_barreled",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "oil_shared",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "sol_amount",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "new_circulating_supply",
-                    "type": "u64",
-                    "index": false
-                },
-                {
-                    "name": "ts",
-                    "type": "i64",
-                    "index": false
-                }
-            ]
-        }
-    ],
-    "errors": [
-        {
-            "code": 0,
-            "name": "AmountTooSmall",
-            "msg": "Amount too small"
+          "name": "squares",
+          "type": "u32"
         },
         {
-            "code": 1,
-            "name": "NotAuthorized",
-            "msg": "Not authorized"
+          "name": "referrer",
+          "type": "publicKey"
+        },
+        {
+          "name": "pooled",
+          "type": "u8"
         }
-    ],
-    "metadata": {
-        "address": "rigwXYKkE8rXiiyu6eFs3ZuDNH2eYHb1y87tYqwDJhk",
-        "origin": "steel"
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 6
+      },
+      "docs": [
+        "Deploys capital to prospect on a square."
+      ],
+      "name": "deploy"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 39
+      },
+      "docs": [
+        "Deploys capital to prospect on a square."
+      ],
+      "name": "deployWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 8
+      },
+      "docs": [
+        "No-op, use instruction data for logging w/o truncation."
+      ],
+      "name": "log"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 9
+      },
+      "docs": [
+        "Pays out the winners and block reward."
+      ],
+      "name": "reset"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 22
+      },
+      "docs": [],
+      "name": "reloadSol"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 27
+      },
+      "docs": [
+        "Creates a referral account for a user to become a referrer."
+      ],
+      "name": "createReferral"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 49
+      },
+      "docs": [
+        "Creates a referral account for a user to become a referrer."
+      ],
+      "name": "createReferralWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 28
+      },
+      "docs": [
+        "Claims pending referral rewards (both SOL and OIL)."
+      ],
+      "name": "claimReferral"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 50
+      },
+      "docs": [
+        "Claims pending referral rewards (both SOL and OIL)."
+      ],
+      "name": "claimReferralWithSession"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "authority"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "well"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "auction"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "treasury"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "treasuryTokens"
+        },
+        {
+          "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy",
+          "isMut": false,
+          "isSigner": false,
+          "name": "mint"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "mintAuthority"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "mintProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "square_id",
+          "type": "u64"
+        },
+        {
+          "name": "referrer",
+          "type": "publicKey"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 29
+      },
+      "docs": [
+        "Direct solo bid on an auction well (seize ownership)"
+      ],
+      "name": "placeBid"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "authority"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "programSigner"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "payer"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "well"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "auction"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "treasury"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "treasuryTokens"
+        },
+        {
+          "address": "oiLTuhTJc9qRDr2FcMiCUBJ3BCunNXP1LGJCG7svBSy",
+          "isMut": false,
+          "isSigner": false,
+          "name": "mint"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "mintAuthority"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "mintProgram"
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 41
+      },
+      "docs": [
+        "Direct solo bid on an auction well (seize ownership)"
+      ],
+      "name": "placeBidWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "well_mask",
+          "type": "u8"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 31
+      },
+      "docs": [],
+      "name": "claimAuctionOil"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 42
+      },
+      "docs": [],
+      "name": "claimAuctionOilwithSession"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "_reserved",
+          "type": "u8"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 32
+      },
+      "docs": [],
+      "name": "claimAuctionSol"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 43
+      },
+      "docs": [],
+      "name": "claimAuctionSolwithSession"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "authority"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "well"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "auction"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "treasury"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "rig"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "share"
+        }
+      ],
+      "args": [
+        {
+          "name": "well_id",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 53
+      },
+      "docs": [
+        "User contributes FOGO to the pool for a specific well"
+      ],
+      "name": "contribute"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "authority"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "programSigner"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "payer"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "well"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "auction"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "treasury"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "rig"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "share"
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 54
+      },
+      "docs": [
+        "User contributes FOGO to the pool for a specific well"
+      ],
+      "name": "contributeWithSession"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "authority"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "rig"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "miner"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "share"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "micro"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "well"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "oilProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "well_id",
+          "type": "u64"
+        },
+        {
+          "name": "epoch_id",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 55
+      },
+      "docs": [
+        "User checkpoints their auction rewards for a specific epoch"
+      ],
+      "name": "checkpointAuction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "authority"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "programSigner"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "rig"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "miner"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "share"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "micro"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "well"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "oilProgram"
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 56
+      },
+      "docs": [
+        "User checkpoints their auction rewards for a specific epoch"
+      ],
+      "name": "checkpointAuctionWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "lock_duration_days",
+          "type": "u64"
+        },
+        {
+          "name": "stake_id",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 10
+      },
+      "docs": [
+        "Deposits OIL into the staking contract. Stakers earn SOL rewards from protocol revenue (2% of round winnings)."
+      ],
+      "name": "deposit"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 48
+      },
+      "docs": [
+        "Deposits OIL into the staking contract. Stakers earn SOL rewards from protocol revenue (2% of round winnings)."
+      ],
+      "name": "depositWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "stake_id",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 11
+      },
+      "docs": [
+        "Withdraws OIL from the staking contract."
+      ],
+      "name": "withdraw"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 47
+      },
+      "docs": [
+        "Withdraws OIL from the staking contract."
+      ],
+      "name": "withdrawWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 12
+      },
+      "docs": [
+        "Claims SOL yield from the staking contract. Stakers earn SOL rewards (2% of round winnings), not OIL."
+      ],
+      "name": "claimYield"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 51
+      },
+      "docs": [
+        "Claims SOL yield from the staking contract. Stakers earn SOL rewards (2% of round winnings), not OIL."
+      ],
+      "name": "claimYieldWithSession"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 13
+      },
+      "docs": [
+        "Swap vaulted SOL to OIL, and burn the OIL."
+      ],
+      "name": "buyback"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "use_liquidity",
+          "type": "u8"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 14
+      },
+      "docs": [
+        "Send SOL from the treasury to the WSOL account.",
+        "/// Can wrap any amount from either treasury.balance or treasury.liquidity.",
+        "use_liquidity: 0 = use balance, 1 = use liquidity",
+        "amount: the amount to wrap (in lamports). If 0, wraps all available."
+      ],
+      "name": "wrap"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "admin",
+          "type": "publicKey"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 16
+      },
+      "docs": [
+        "Sets the admin."
+      ],
+      "name": "setAdmin"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "fee_collector",
+          "type": "publicKey"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 17
+      },
+      "docs": [
+        "Sets the fee collector."
+      ],
+      "name": "setFeeCollector"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 18
+      },
+      "docs": [
+        "Sets the swap program."
+      ],
+      "name": "setSwapProgram"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 19
+      },
+      "docs": [
+        "Sets the swap program."
+      ],
+      "name": "setVarAddress"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "id",
+          "type": "u64"
+        },
+        {
+          "name": "commit",
+          "type": "publicKey"
+        },
+        {
+          "name": "samples",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 20
+      },
+      "docs": [
+        "Creates a new var account."
+      ],
+      "name": "newVar"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "admin_fee",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 21
+      },
+      "docs": [
+        "Sets the admin fee."
+      ],
+      "name": "setAdminFee"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 26
+      },
+      "docs": [
+        "Migrate: Extend Treasury struct with 2 u64 fields (buffer_b and auction_total_pooled)"
+      ],
+      "name": "migrate"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "halving_period_seconds",
+          "type": "u64"
+        },
+        {
+          "name": "last_halving_time",
+          "type": "u64"
+        },
+        {
+          "name": "base_mining_rates",
+          "type": "u64"
+        },
+        {
+          "name": "auction_duration_seconds",
+          "type": "u64"
+        },
+        {
+          "name": "starting_prices",
+          "type": "u64"
+        },
+        {
+          "name": "well_id",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 33
+      },
+      "docs": [
+        "Sets the auction state (admin only)"
+      ],
+      "name": "setAuction"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "code_hash",
+          "type": "publicKey"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 34
+      },
+      "docs": [
+        "Creates a Whitelist account for a shared access code."
+      ],
+      "name": "createWhitelist"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "tge_timestamp",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 35
+      },
+      "docs": [
+        "Sets the TGE (Token Generation Event) timestamp."
+      ],
+      "name": "setTgeTimestamp"
+    },
+    {
+      "accounts": [],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 37
+      },
+      "docs": [
+        "Send wrapped SOL from the treasury to the liq manager.",
+        "The liq manager (off-chain) will handle adding liquidity to the pool."
+      ],
+      "name": "liq"
+    },
+    {
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 38
+      },
+      "docs": [
+        "Barrel (burn) leftover OIL from the liq manager.",
+        "Burns 100% of the OIL."
+      ],
+      "name": "barrel"
     }
+  ],
+  "accounts": [
+    {
+      "discriminator": [
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "The amount of SOL to deploy on each territory per round.",
+        "The authority of this automation account.",
+        "The amount of SOL this automation has left.",
+        "The executor of this automation account.",
+        "The amount of SOL the executor should receive in fees.",
+        "The strategy this automation uses.",
+        "The mask of squares this automation should deploy to.",
+        "- Preferred: bit flags for which squares to deploy to",
+        "- Random: first byte is number of squares to randomly select",
+        "- Repeat: bit flags for which squares to deploy to (auto-updated after each deployment)",
+        "Whether or not to auto-reload SOL winnings into the automation balance.",
+        "Whether automated deployments should be pooled (1 = pooled, 0 = not pooled)."
+      ],
+      "name": "Automation",
+      "type": {
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "u64"
+          },
+          {
+            "name": "balance",
+            "type": "u64"
+          },
+          {
+            "name": "executor",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          },
+          {
+            "name": "strategy",
+            "type": "u64"
+          },
+          {
+            "name": "mask",
+            "type": "u64"
+          },
+          {
+            "name": "reload",
+            "type": "u64"
+          },
+          {
+            "name": "pooled",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        101,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "The address that can update the config.",
+        "The adress with authority to call wrap and barrel.",
+        "The address that receives admin fees.",
+        "The program to be used for protocol swaps.",
+        "The address of the entropy var account.",
+        "Amount to pay to fee collector (bps)",
+        "Current emission week (used for automatic weekly halving)",
+        "Timestamp when the last emission week was updated (for automatic weekly progression)",
+        "Timestamp for Token Generation Event (TGE). If current time < tge_timestamp, pre-mine is active.",
+        "Set to 0 to disable pre-mine."
+      ],
+      "name": "Config",
+      "type": {
+        "fields": [
+          {
+            "name": "admin",
+            "type": "u64"
+          },
+          {
+            "name": "barrel_authority",
+            "type": "u64"
+          },
+          {
+            "name": "fee_collector",
+            "type": "u64"
+          },
+          {
+            "name": "swap_program",
+            "type": "u64"
+          },
+          {
+            "name": "var_address",
+            "type": "u64"
+          },
+          {
+            "name": "admin_fee",
+            "type": "u64"
+          },
+          {
+            "name": "emission_week",
+            "type": "u64"
+          },
+          {
+            "name": "last_emission_week_update",
+            "type": "u64"
+          },
+          {
+            "name": "tge_timestamp",
+            "type": "i64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        103,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "The authority of this miner account.",
+        "The miner's prospects in the current round.",
+        "The cumulative amount of SOL deployed on each square prior to this miner's move.",
+        "SOL witheld in reserve to pay for checkpointing.",
+        "The last round that this miner checkpointed.",
+        "The last time this miner claimed OIL rewards.",
+        "The last time this miner claimed SOL rewards.",
+        "The rewards factor last time rewards were updated on this miner account.",
+        "The amount of SOL this miner can claim.",
+        "The amount of OIL this miner can claim.",
+        "The amount of OIL this miner has earned from claim fees.",
+        "The ID of the round this miner last played in.",
+        "The pooled deployed amount of this miner.",
+        "OIL rewards from auction wells (not yet claimed)",
+        "SOL rewards from auction wells (not yet claimed)",
+        "The rewards factor last time auction rewards were updated on this rig account.",
+        "The amount of OIL this rig has earned from auction claim fees (refined OIL).",
+        "The last time this rig claimed OIL rewards.",
+        "The last time this rig claimed SOL rewards.",
+        "The total amount of SOL this miner has mined across all blocks.",
+        "The total amount of OIL this miner has mined across all blocks.",
+        "The total amount of OIL this miner has deployed across all rounds.",
+        "The pubkey of the referrer who referred this miner.",
+        "Total stake score across all stake accounts for this miner.",
+        "XP system (future development)"
+      ],
+      "name": "Miner",
+      "type": {
+        "fields": [
+          {
+            "name": "authority",
+            "type": "u64"
+          },
+          {
+            "name": "deployed",
+            "type": "u64"
+          },
+          {
+            "name": "cumulative",
+            "type": "u64"
+          },
+          {
+            "name": "checkpoint_fee",
+            "type": "u64"
+          },
+          {
+            "name": "checkpoint_id",
+            "type": "u64"
+          },
+          {
+            "name": "last_claim_block_oil_at",
+            "type": "i64"
+          },
+          {
+            "name": "last_claim_block_sol_at",
+            "type": "i64"
+          },
+          {
+            "name": "block_rewards_factor",
+            "type": "u64"
+          },
+          {
+            "name": "block_rewards_sol",
+            "type": "u64"
+          },
+          {
+            "name": "block_rewards_oil",
+            "type": "u64"
+          },
+          {
+            "name": "block_refined_oil",
+            "type": "u64"
+          },
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "pooled_deployed",
+            "type": "u64"
+          },
+          {
+            "name": "auction_rewards_oil",
+            "type": "u64"
+          },
+          {
+            "name": "auction_rewards_sol",
+            "type": "u64"
+          },
+          {
+            "name": "auction_rewards_factor",
+            "type": "u64"
+          },
+          {
+            "name": "auction_refined_oil",
+            "type": "u64"
+          },
+          {
+            "name": "last_claim_auction_oil_at",
+            "type": "i64"
+          },
+          {
+            "name": "last_claim_auction_sol_at",
+            "type": "i64"
+          },
+          {
+            "name": "lifetime_rewards_sol",
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_rewards_oil",
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_deployed",
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_bid",
+            "type": "u64"
+          },
+          {
+            "name": "referrer",
+            "type": "u64"
+          },
+          {
+            "name": "total_stake_score",
+            "type": "u64"
+          },
+          {
+            "name": "is_seeker",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_a",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        104,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Treasury is a singleton account which is the mint authority for the OIL token and the authority of",
+        "The amount of SOL in the gusher rewards pool.",
+        "The cumulative OIL distributed to miners, divided by the total unclaimed OIL at the time of distribution.",
+        "Buffer field (previously stake_rewards_factor, now in Pool).",
+        "The total amount of OIL barreled (burned) through buyback operations.",
+        "The current total amount of refined OIL mining rewards.",
+        "The total amount of SOL held in treasury for auction rewards (to be claimed by miners).",
+        "The current total amount of unclaimed OIL mining rewards.",
+        "Auction-based mining: The cumulative OIL distributed to miners, divided by the total unclaimed auction OIL at the time of distribution.",
+        "Auction-based mining: The current total amount of unclaimed auction OIL mining rewards.",
+        "Auction-based mining: The current total amount of refined auction OIL mining rewards.",
+        "The amount of SOL used for liquidity & market making",
+        "Buffer field for future extensions",
+        "Auction-based mining: Total amount of FOGO pooled across all wells"
+      ],
+      "name": "Treasury",
+      "type": {
+        "fields": [
+          {
+            "name": "balance",
+            "type": "u64"
+          },
+          {
+            "name": "gusher_sol",
+            "type": "u64"
+          },
+          {
+            "name": "block_rewards_factor",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_a",
+            "type": "u64"
+          },
+          {
+            "name": "total_barrelled",
+            "type": "u64"
+          },
+          {
+            "name": "block_total_refined",
+            "type": "u64"
+          },
+          {
+            "name": "auction_rewards_sol",
+            "type": "u64"
+          },
+          {
+            "name": "block_total_unclaimed",
+            "type": "u64"
+          },
+          {
+            "name": "auction_rewards_factor",
+            "type": "u64"
+          },
+          {
+            "name": "auction_total_unclaimed",
+            "type": "u64"
+          },
+          {
+            "name": "auction_total_refined",
+            "type": "u64"
+          },
+          {
+            "name": "liquidity",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_b",
+            "type": "u64"
+          },
+          {
+            "name": "auction_total_pooled",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        105,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "The current round number.",
+        "The slot at which the current round starts mining.",
+        "The slot at which the current round ends mining.",
+        "The current epoch id."
+      ],
+      "name": "Board",
+      "type": {
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "start_slot",
+            "type": "u64"
+          },
+          {
+            "name": "end_slot",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        108,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "The authority of this miner account.",
+        "The balance of this stake account.",
+        "Lock duration in days (0 = no lock, 1-730 days)",
+        "Unix timestamp when lock expires (0 = no lock)",
+        "Buffer c (placeholder)",
+        "Buffer d (placeholder)",
+        "Buffer e (placeholder)",
+        "The timestamp of last claim.",
+        "The timestamp the last time this staker deposited.",
+        "The timestamp the last time this staker withdrew.",
+        "The rewards factor last time rewards were updated on this stake account.",
+        "The amount of SOL this staker can claim.",
+        "The total amount of SOL this staker has earned over its lifetime.",
+        "Buffer f (placeholder)"
+      ],
+      "name": "Stake",
+      "type": {
+        "fields": [
+          {
+            "name": "authority",
+            "type": "u64"
+          },
+          {
+            "name": "balance",
+            "type": "u64"
+          },
+          {
+            "name": "lock_duration_days",
+            "type": "u64"
+          },
+          {
+            "name": "lock_ends_at",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_c",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_d",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_e",
+            "type": "u64"
+          },
+          {
+            "name": "last_claim_at",
+            "type": "i64"
+          },
+          {
+            "name": "last_deposit_at",
+            "type": "i64"
+          },
+          {
+            "name": "last_withdraw_at",
+            "type": "i64"
+          },
+          {
+            "name": "rewards_factor",
+            "type": "u64"
+          },
+          {
+            "name": "rewards",
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_rewards",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_f",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        109,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "The round number.",
+        "The amount of SOL deployed in each square.",
+        "The hash of the end slot, provided by solana, used for random number generation.",
+        "The count of miners on each square.",
+        "The slot at which claims for this round account end.",
+        "The account to which rent should be returned when this account is closed.",
+        "The top miner of the round.",
+        "The amount of OIL to distribute to the top miner.",
+        "The total amount of SOL deployed in the round.",
+        "The total number of unique miners that played in the round.",
+        "The total amount of SOL put in the OIL vault.",
+        "The total amount of SOL won by miners for the round.",
+        "The amount of SOL in the gusher.",
+        "The amount of pooled SOL deployed in each square.",
+        "The total amount of pooled SOL deployed in the round.",
+        "The SOL rewards allocated to the pool for this round.",
+        "The OIL rewards allocated to the pool for this round.",
+        "The number of unique miners who deployed as pooled this round.",
+        "The cumulative SOL deployed by solo miners before pool deployed to each square."
+      ],
+      "name": "Round",
+      "type": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "deployed",
+            "type": "u64"
+          },
+          {
+            "name": "slot_hash",
+            "type": "publicKey"
+          },
+          {
+            "name": "count",
+            "type": "u64"
+          },
+          {
+            "name": "expires_at",
+            "type": "u64"
+          },
+          {
+            "name": "rent_payer",
+            "type": "u64"
+          },
+          {
+            "name": "top_miner",
+            "type": "u64"
+          },
+          {
+            "name": "top_miner_reward",
+            "type": "u64"
+          },
+          {
+            "name": "total_deployed",
+            "type": "u64"
+          },
+          {
+            "name": "total_miners",
+            "type": "u64"
+          },
+          {
+            "name": "total_vaulted",
+            "type": "u64"
+          },
+          {
+            "name": "total_winnings",
+            "type": "u64"
+          },
+          {
+            "name": "gusher_sol",
+            "type": "u64"
+          },
+          {
+            "name": "deployed_pooled",
+            "type": "u64"
+          },
+          {
+            "name": "total_pooled",
+            "type": "u64"
+          },
+          {
+            "name": "pool_rewards_sol",
+            "type": "u64"
+          },
+          {
+            "name": "pool_rewards_oil",
+            "type": "u64"
+          },
+          {
+            "name": "pool_members",
+            "type": "u64"
+          },
+          {
+            "name": "pool_cumulative",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        110,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Referral account tracks a referrer's stats and pending rewards.",
+        "The authority (wallet) of this referrer.",
+        "Total number of miners referred by this referrer.",
+        "Total SOL earned from referrals (lifetime, for stats).",
+        "Total OIL earned from referrals (lifetime, for stats).",
+        "Pending SOL rewards to claim.",
+        "Pending OIL rewards to claim."
+      ],
+      "name": "Referral",
+      "type": {
+        "fields": [
+          {
+            "name": "authority",
+            "type": "u64"
+          },
+          {
+            "name": "total_referred",
+            "type": "u64"
+          },
+          {
+            "name": "total_sol_earned",
+            "type": "u64"
+          },
+          {
+            "name": "total_oil_earned",
+            "type": "u64"
+          },
+          {
+            "name": "pending_sol",
+            "type": "u64"
+          },
+          {
+            "name": "pending_oil",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        111,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Pool account holds all staking-related data and SOL rewards for stakers.",
+        "The amount of SOL available for staking rewards (2% of round winnings).",
+        "The cumulative SOL distributed to stakers, divided by the total stake score at the time of distribution.",
+        "The current total staked score (sum of all balance * multiplier).",
+        "The current total amount of OIL staked (stakers earn SOL rewards, not OIL).",
+        "Buffer field (for future use, e.g., OIL rewards).",
+        "Total amount of OIL burned from early withdrawal penalties (deflationary).",
+        "Buffer field (for future use)."
+      ],
+      "name": "Pool",
+      "type": {
+        "fields": [
+          {
+            "name": "balance",
+            "type": "u64"
+          },
+          {
+            "name": "stake_rewards_factor",
+            "type": "u64"
+          },
+          {
+            "name": "total_staked_score",
+            "type": "u64"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_a",
+            "type": "u64"
+          },
+          {
+            "name": "total_burned_penalties",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_c",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        114,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Singleton auction configuration account",
+        "Halving period in seconds (28 days = 2,419,200 seconds)",
+        "Timestamp of the last halving event (Unix timestamp in seconds)",
+        "Base mining rates per well (OIL per second, in atomic units)",
+        "Auction duration in seconds (1 hour = 3600)",
+        "Starting prices per well (in lamports)",
+        "Buffer field (for future use)",
+        "Buffer field (for future use) - previously min_pool_contribution",
+        "Buffer field (for future use)",
+        "Buffer field (for future use)",
+        "Get the timestamp when the next halving should occur",
+        "Check if halving should be applied based on current time"
+      ],
+      "name": "Auction",
+      "type": {
+        "fields": [
+          {
+            "name": "halving_period_seconds",
+            "type": "u64"
+          },
+          {
+            "name": "last_halving_time",
+            "type": "u64"
+          },
+          {
+            "name": "base_mining_rates",
+            "type": "u64"
+          },
+          {
+            "name": "auction_duration_seconds",
+            "type": "u64"
+          },
+          {
+            "name": "starting_prices",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_a",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_b",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_c",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_d",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        115,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Well account (one per well)",
+        "Well ID (0-3) - which well this is for",
+        "Current epoch ID (increments each auction: 0, 1, 2, 3, etc.)",
+        "Current bidder/owner (Pubkey::default() if unowned)",
+        "Initial price for current epoch (in lamports)",
+        "Mining per second (MPS) - current mining rate (OIL per second, in atomic units)",
+        "Epoch start time (timestamp when current epoch started)",
+        "Accumulated OIL mined by current owner (not yet claimed)",
+        "Last time accumulated_oil was updated",
+        "Number of halvings that have occurred (for rate calculation)",
+        "Total OIL ever mined from this well (lifetime)",
+        "Total OIL mined by current operator (doesn't reset when claimed, only when ownership changes)",
+        "Buffer field (for future use) - previously is_pool_owned",
+        "Total contributed FOGO for current epoch (tracks native SOL balance in Well PDA's system account)",
+        "Incremented on each contribution, decremented when pool bids",
+        "Reset to 0 when epoch ends",
+        "Pool bid cost - stores the bid_amount when pool bids",
+        "Used to calculate original_total when pool gets outbid",
+        "Reset to 0 when epoch ends"
+      ],
+      "name": "Well",
+      "type": {
+        "fields": [
+          {
+            "name": "well_id",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "current_bidder",
+            "type": "u64"
+          },
+          {
+            "name": "init_price",
+            "type": "u64"
+          },
+          {
+            "name": "mps",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_start_time",
+            "type": "u64"
+          },
+          {
+            "name": "accumulated_oil",
+            "type": "u64"
+          },
+          {
+            "name": "last_update_time",
+            "type": "u64"
+          },
+          {
+            "name": "halving_count",
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_oil_mined",
+            "type": "u64"
+          },
+          {
+            "name": "operator_total_oil_mined",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_c",
+            "type": "u64"
+          },
+          {
+            "name": "total_contributed",
+            "type": "u64"
+          },
+          {
+            "name": "pool_bid_cost",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        116,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Rig account tracks a user's auction participation and checkpoint status across all wells",
+        "Authority (user's wallet)",
+        "Last epoch participated in per well (index = well_id, 0-3)",
+        "Last epoch checkpointed per well (index = well_id, 0-3)",
+        "Buffer field for future extensions",
+        "Buffer field for future extensions",
+        "Buffer field for future extensions"
+      ],
+      "name": "Rig",
+      "type": {
+        "fields": [
+          {
+            "name": "authority",
+            "type": "u64"
+          },
+          {
+            "name": "current_epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "checkpointed_epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_a",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_b",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_c",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        117,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Whitelist tracks access codes for pre-mine phase.",
+        "The code hash (first 32 bytes of keccak256 hash of the code string)",
+        "Number of times this code has been used (optional tracking)",
+        "Derives the PDA for a Whitelist account.",
+        "Validates and processes a premine access code for a new transaction."
+      ],
+      "name": "Whitelist",
+      "type": {
+        "fields": [
+          {
+            "name": "code_hash",
+            "type": "publicKey"
+          },
+          {
+            "name": "usage_count",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        118,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Micro account stores per-epoch totals for a specific well and epoch",
+        "Well ID (0-3)",
+        "Epoch ID",
+        "Total pooled FOGO for this epoch (original total before pool bid deduction)",
+        "Total OIL mined during this epoch",
+        "Total refund when outbid (86% of new bid + leftover FOGO)",
+        "Number of unique contributors (optional, for stats)",
+        "Buffer field for future extensions",
+        "Buffer field for future extensions",
+        "Buffer field for future extensions"
+      ],
+      "name": "Micro",
+      "type": {
+        "fields": [
+          {
+            "name": "well_id",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "total_contributed",
+            "type": "u64"
+          },
+          {
+            "name": "total_oil_mined",
+            "type": "u64"
+          },
+          {
+            "name": "total_refund",
+            "type": "u64"
+          },
+          {
+            "name": "pool_members",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_a",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_b",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_c",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "discriminator": [
+        119,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "docs": [
+        "Share account tracks a user's contribution to a specific epoch for a specific well",
+        "Authority who made the contribution",
+        "Well ID this share is for (0-3)",
+        "Epoch ID this share is for (included in PDA, stored here for convenience)",
+        "User's contribution to this epoch's pool (in lamports)",
+        "Timestamp when share was created (first contribution to this epoch)",
+        "Amount of OIL claimed from this epoch (0 = not checkpointed, >0 = checkpointed)",
+        "Amount of SOL refund claimed from this epoch",
+        "Buffer field for future extensions",
+        "Buffer field for future extensions",
+        "Buffer field for future extensions"
+      ],
+      "name": "Share",
+      "type": {
+        "fields": [
+          {
+            "name": "authority",
+            "type": "u64"
+          },
+          {
+            "name": "well_id",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "contribution",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "u64"
+          },
+          {
+            "name": "claimed_oil",
+            "type": "u64"
+          },
+          {
+            "name": "claimed_sol",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_a",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_b",
+            "type": "u64"
+          },
+          {
+            "name": "buffer_c",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    }
+  ],
+  "types": [
+    {
+      "docs": [
+        "Fixed-point helper backed by I80F48 from the steel crate."
+      ],
+      "name": "Numeric",
+      "type": {
+        "fields": [
+          {
+            "name": "bits",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    }
+  ],
+  "events": [
+    {
+      "discriminator": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fields": [
+        {
+          "index": false,
+          "name": "disc",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "round_id",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "start_slot",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "end_slot",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "winning_square",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "top_miner",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "num_winners",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "total_deployed",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "total_vaulted",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "total_winnings",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "total_minted",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "ts",
+          "type": "i64"
+        },
+        {
+          "index": false,
+          "name": "gusher_sol",
+          "type": "u64"
+        }
+      ],
+      "name": "ResetEvent"
+    },
+    {
+      "discriminator": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fields": [
+        {
+          "index": false,
+          "name": "disc",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "oil_barreled",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "oil_shared",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "sol_amount",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "new_circulating_supply",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "ts",
+          "type": "i64"
+        }
+      ],
+      "name": "BarrelEvent"
+    },
+    {
+      "discriminator": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fields": [
+        {
+          "index": false,
+          "name": "disc",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "authority",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "mask",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "round_id",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "signer",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "strategy",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "total_squares",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "ts",
+          "type": "i64"
+        }
+      ],
+      "name": "DeployEvent"
+    },
+    {
+      "discriminator": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fields": [
+        {
+          "index": false,
+          "name": "disc",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "sol_amount",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "recipient",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "ts",
+          "type": "i64"
+        }
+      ],
+      "name": "LiqEvent"
+    },
+    {
+      "discriminator": [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fields": [
+        {
+          "index": false,
+          "name": "disc",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "authority",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "square_id",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "bid_amount",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "current_price",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "previous_owner",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "accumulated_oil_transferred",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "new_start_price",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "ts",
+          "type": "u64"
+        }
+      ],
+      "name": "BidEvent"
+    },
+    {
+      "discriminator": [
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fields": [
+        {
+          "index": false,
+          "name": "disc",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "authority",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "oil_claimed",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "refining_fee",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "ts",
+          "type": "u64"
+        }
+      ],
+      "name": "ClaimAuctionOILEvent"
+    },
+    {
+      "discriminator": [
+        7,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fields": [
+        {
+          "index": false,
+          "name": "disc",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "authority",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "sol_claimed",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "rewards_sol",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "refunds_sol",
+          "type": "u64"
+        },
+        {
+          "index": false,
+          "name": "ts",
+          "type": "u64"
+        }
+      ],
+      "name": "ClaimAuctionSOLEvent"
+    }
+  ],
+  "errors": [
+    {
+      "code": 0,
+      "msg": "Amount too small",
+      "name": "AmountTooSmall"
+    },
+    {
+      "code": 1,
+      "msg": "Not authorized",
+      "name": "NotAuthorized"
+    }
+  ],
+  "metadata": {
+    "address": "rigwXYKkE8rXiiyu6eFs3ZuDNH2eYHb1y87tYqwDJhk",
+    "origin": "steel"
+  }
 }

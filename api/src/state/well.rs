@@ -45,11 +45,15 @@ pub struct Well {
     /// Buffer field (for future use) - previously is_pool_owned
     pub buffer_c: u64,
     
-    /// Buffer field (for future use)
-    pub buffer_d: u64,
+    /// Total contributed FOGO for current epoch (tracks native SOL balance in Well PDA's system account)
+    /// Incremented on each contribution, decremented when pool bids
+    /// Reset to 0 when epoch ends
+    pub total_contributed: u64,
     
-    /// Buffer field (for future use)
-    pub buffer_e: u64,
+    /// Pool bid cost - stores the bid_amount when pool bids
+    /// Used to calculate original_total when pool gets outbid
+    /// Reset to 0 when epoch ends
+    pub pool_bid_cost: u64,
 }
 
 impl Well {

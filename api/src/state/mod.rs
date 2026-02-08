@@ -1,31 +1,33 @@
 mod automation;
 mod auction;
-mod bid;
 mod board;
 mod config;
+mod micro;
 mod miner;
 mod pool;
 mod referral;
+mod rig;
 mod round;
+mod share;
 mod well;
 mod stake;
 mod treasury;
-mod seeker;
 mod whitelist;
 
 pub use automation::*;
 pub use auction::*;
-pub use bid::*;
 pub use board::*;
 pub use config::*;
+pub use micro::*;
 pub use miner::*;
 pub use pool::*;
 pub use referral::*;
+pub use rig::*;
 pub use round::*;
+pub use share::*;
 pub use well::*;
 pub use stake::*;
 pub use treasury::*;
-pub use seeker::*;
 #[allow(unused_imports)] // Exported for use in other crates (e.g., program crate)
 pub use whitelist::*;
 use crate::consts::*;
@@ -44,11 +46,12 @@ pub enum OilAccount {
     Round = 109,
     Referral = 110,
     Pool = 111,
-    Bid = 113,
     Auction = 114,
     Well = 115,
-    Seeker = 116,
+    Rig = 116,
     Whitelist = 117,
+    Micro = 118,
+    Share = 119,
 }
 
 pub fn automation_pda(authority: Pubkey) -> (Pubkey, u8) {
@@ -73,10 +76,6 @@ pub fn round_pda(id: u64) -> (Pubkey, u8) {
 
 pub fn stake_pda(authority: Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[STAKE, &authority.to_bytes()], &crate::ID)
-}
-
-pub fn seeker_pda(mint: Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[SEEKER, &mint.to_bytes()], &crate::ID)
 }
 
 pub fn stake_pda_with_id(authority: Pubkey, stake_id: u64) -> (Pubkey, u8) {
@@ -104,14 +103,26 @@ pub fn pool_tokens_address() -> Pubkey {
     spl_associated_token_account::get_associated_token_address(&pool_address, &MINT_ADDRESS)
 }
 
-pub fn bid_pda(authority: Pubkey, well_id: u64, epoch_id: u64) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[BID, &authority.to_bytes(), &well_id.to_le_bytes(), &epoch_id.to_le_bytes()], &crate::ID)
-}
-
 pub fn auction_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&[AUCTION], &crate::ID)
 }
 
 pub fn well_pda(well_id: u64) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[WELL, &well_id.to_le_bytes()], &crate::ID)
+}
+
+pub fn whitelist_pda(code_hash: [u8; 32]) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[WHITELIST, &code_hash], &crate::ID)
+}
+
+pub fn rig_pda(authority: Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[RIG, &authority.to_bytes()], &crate::ID)
+}
+
+pub fn micro_pda(well_id: u64, epoch_id: u64) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[MICRO, &well_id.to_le_bytes(), &epoch_id.to_le_bytes()], &crate::ID)
+}
+
+pub fn share_pda(authority: Pubkey, well_id: u64, epoch_id: u64) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[SHARE, &authority.to_bytes(), &well_id.to_le_bytes(), &epoch_id.to_le_bytes()], &crate::ID)
 }

@@ -42,6 +42,12 @@ pub struct Treasury {
 
     /// The amount of SOL used for liquidity & market making
     pub liquidity: u64,
+
+    /// Buffer field for future extensions
+    pub buffer_b: u64,
+
+    /// Auction-based mining: Total amount of FOGO pooled across all wells
+    pub auction_total_pooled: u64,
 }
 
 impl Treasury {

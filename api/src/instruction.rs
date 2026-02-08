@@ -32,6 +32,10 @@ pub enum OilInstruction {
     ClaimAuctionOILWithSession = 42,
     ClaimAuctionSOL = 32,
     ClaimAuctionSOLWithSession = 43,
+    Contribute = 53,
+    ContributeWithSession = 54,
+    CheckpointAuction = 55,
+    CheckpointAuctionWithSession = 56,
 
     // Staker
     Deposit = 10,
@@ -266,6 +270,24 @@ pub struct SetAuction {
     pub well_id: [u8; 8],  // Well ID to update (0-3). If >= 4, only updates auction account.
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct Contribute {
+    /// Well ID to contribute to (0-3)
+    pub well_id: [u8; 8],
+    /// Amount to contribute (in lamports) - treated as maximum, may be less if pool becomes eligible
+    pub amount: [u8; 8],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct CheckpointAuction {
+    /// Well ID to checkpoint (0-3)
+    pub well_id: [u8; 8],
+    /// Epoch ID to checkpoint
+    pub epoch_id: [u8; 8],
+}
+
 instruction!(OilInstruction, Automate);
 instruction!(OilInstruction, Initialize);
 instruction!(OilInstruction, Checkpoint);
@@ -298,3 +320,5 @@ instruction!(OilInstruction, CreateWhitelist);
 instruction!(OilInstruction, SetTgeTimestamp);
 instruction!(OilInstruction, Liq);
 instruction!(OilInstruction, Barrel);
+instruction!(OilInstruction, Contribute);
+instruction!(OilInstruction, CheckpointAuction);

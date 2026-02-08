@@ -253,8 +253,8 @@ pub fn process_initialize(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramR
             well.lifetime_oil_mined = 0;
             well.operator_total_oil_mined = 0;
             well.buffer_c = 0;
-            well.buffer_d = 0;
-            well.buffer_e = 0;
+            well.total_contributed = 0;
+            well.pool_bid_cost = 0;
         } else {
             well_info.as_account::<Well>(&oil_api::ID)?;
         }

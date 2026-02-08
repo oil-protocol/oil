@@ -2613,12 +2613,13 @@ dependencies = [
 
 [[package]]
 name = "oil-api"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "base64 0.22.1",
  "bytemuck",
  "const-crypto",
  "entropy-rng-api",
+ "fogo-sessions-sdk",
  "num_enum",
  "oil-mint-api",
  "serde",

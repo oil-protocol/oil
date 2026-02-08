@@ -43,6 +43,10 @@ mod set_auction;
 mod set_tge_timestamp;
 mod liq;
 mod barrel;
+mod contribute;
+mod contribute_with_session;
+mod checkpoint_auction;
+mod checkpoint_auction_with_session;
 
 use initialize::*;
 use automate::*;
@@ -89,6 +93,10 @@ use set_auction::*;
 use set_tge_timestamp::*;
 use liq::*;
 use barrel::*;
+use contribute::*;
+use contribute_with_session::*;
+use checkpoint_auction::*;
+use checkpoint_auction_with_session::*;
 use oil_api::instruction::*;
 use steel::*;
 
@@ -157,6 +165,10 @@ pub fn process_instruction<'a>(
         OilInstruction::ClaimAuctionSOLWithSession => process_claim_auction_sol_with_session(accounts, data)?,
         OilInstruction::SetAuction => process_set_auction(accounts, data)?,
         OilInstruction::Barrel => process_barrel(accounts, data)?,
+        OilInstruction::Contribute => process_contribute(accounts, data)?,
+        OilInstruction::ContributeWithSession => process_contribute_with_session(accounts, data)?,
+        OilInstruction::CheckpointAuction => process_checkpoint_auction(accounts, data)?,
+        OilInstruction::CheckpointAuctionWithSession => process_checkpoint_auction_with_session(accounts, data)?,
 
     }
 

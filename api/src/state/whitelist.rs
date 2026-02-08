@@ -3,6 +3,7 @@ use solana_program::program_error::ProgramError;
 use solana_program::log::sol_log;
 use steel::*;
 
+use crate::consts::WHITELIST;
 use super::OilAccount;
 
 /// Whitelist tracks access codes for pre-mine phase.
@@ -20,7 +21,7 @@ impl Whitelist {
     /// Derives the PDA for a Whitelist account.
     pub fn pda(code_hash: [u8; 32]) -> (Pubkey, u8) {
         use crate::ID;
-        Pubkey::find_program_address(&[b"whitelist", &code_hash], &ID)
+        Pubkey::find_program_address(&[WHITELIST, &code_hash], &ID)
     }
 
     /// Validates and processes a premine access code for a new transaction.

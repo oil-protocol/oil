@@ -8,7 +8,7 @@ use solana_program::{
 };
 use steel::*;
 
-/// Migrate: Extend Treasury struct with liquidity field
+/// Migrate: Extend Treasury struct with 2 u64 fields (buffer_b and auction_total_pooled)
 pub fn process_migrate(accounts: &[AccountInfo<'_>], _data: &[u8]) -> ProgramResult {
     let [signer_info, config_info, treasury_info, system_program_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -32,9 +32,9 @@ pub fn process_migrate(accounts: &[AccountInfo<'_>], _data: &[u8]) -> ProgramRes
         return Err(ProgramError::InvalidArgument);
     }
     
-    // Calculate sizes - old Treasury is 120 bytes (8 discriminator + 112 data), new is 128 bytes (8 discriminator + 120 data)
+    // Calculate sizes - current Treasury is 128 bytes (8 discriminator + 120 data), new is 144 bytes (8 discriminator + 136 data)
     let old_size = treasury_info.data_len();
-    let new_struct_size = 128; // New Treasury: 8 discriminator + 120 bytes of data
+    let new_struct_size = 144; // New Treasury: 8 discriminator + 136 bytes of data (adding 2 u64 fields = 16 bytes)
     
     // Check if already migrated
     if old_size >= new_struct_size {
@@ -42,7 +42,7 @@ pub fn process_migrate(accounts: &[AccountInfo<'_>], _data: &[u8]) -> ProgramRes
         return Ok(());
     }
     
-    sol_log("Migrating Treasury: Adding liquidity field");
+    sol_log("Migrating Treasury: Adding 2 u64 fields (buffer_b and auction_total_pooled)");
     sol_log(&format!("Reallocating Treasury: {} -> {} bytes", old_size, new_struct_size));
     
     // Reallocate account to new size
@@ -62,7 +62,7 @@ pub fn process_migrate(accounts: &[AccountInfo<'_>], _data: &[u8]) -> ProgramRes
     // Reallocate the account (new bytes are automatically zero-initialized)
     treasury_info.realloc(new_struct_size, false)?;
     
-    sol_log("Treasury migration complete: liquidity field added (initialized to 0)");
+    sol_log("Treasury migration complete: 2 u64 fields added (initialized to 0)");
     
     Ok(())
 }

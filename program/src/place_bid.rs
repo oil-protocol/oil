@@ -1,5 +1,5 @@
 use oil_api::prelude::*;
-use oil_api::consts::AUCTION_FLOOR_PRICE;
+use oil_api::consts::{AUCTION_FLOOR_PRICE, POOL_ADDRESS};
 use oil_api::instruction::PlaceBid;
 use solana_program::{log::sol_log, native_token::lamports_to_sol};
 use steel::*;
@@ -16,20 +16,23 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     }
 
     let has_referral = referrer != Pubkey::default();
-    let expected_len = 17 + if has_referral { 1 } else { 0 };
+    // Account order: signer, authority, well, auction, treasury, treasury_tokens, mint, mint_authority, mint_program,
+    // staking_pool, fee_collector, config, token_program, system_program, oil_program, bidder_miner, previous_owner_miner,
+    // rig, micro, referral (optional)
+    let expected_len = 19 + if has_referral { 1 } else { 0 };
     
     if accounts.len() < expected_len {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     
     let mut accounts_iter = accounts.iter();
-    oil_api::extract_accounts!(accounts_iter, [s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom]);
+    oil_api::extract_accounts!(accounts_iter, [s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, r, mic]);
     let ref_info = if has_referral { accounts_iter.next() } else { None };
     let (signer_info, authority_info, well_info, auction_info, 
          treasury_info, treasury_tokens_info, mint_info, mint_authority_info, mint_program, staking_pool_info, 
          fee_collector_info, config_info, token_program, system_program, oil_program, bidder_miner_info, 
-         previous_owner_miner_info, referral_info_opt) = 
-         (s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, ref_info);
+         previous_owner_miner_info, rig_info, micro_info, referral_info_opt) = 
+         (s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, r, mic, ref_info);
 
     signer_info.is_signer()?;
     let authority = *authority_info.key;
@@ -78,6 +81,32 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
                 authority,
             )?;
         }
+    }
+    
+    // Create or load Rig account
+    let rig = if rig_info.data_is_empty() {
+        rig_info.is_writable()?.has_seeds(&[RIG, &authority.to_bytes()], &oil_api::ID)?;
+        create_program_account::<Rig>(
+            rig_info,
+            system_program,
+            signer_info,
+            &oil_api::ID,
+            &[RIG, &authority.to_bytes()],
+        )?;
+        let r = rig_info.as_account_mut::<Rig>(&oil_api::ID)?;
+        r.initialize(authority);
+        r
+    } else {
+        rig_info.is_writable()?.has_seeds(&[RIG, &authority.to_bytes()], &oil_api::ID)?;
+        let r = rig_info.as_account_mut::<Rig>(&oil_api::ID)?;
+        r.assert_mut(|r| r.authority == authority)?;
+        r
+    };
+    
+    // Checkpoint requirement: Must checkpoint previous epoch before placing bid
+    // Similar to block-based mining: if miner.round_id != round.id, must have checkpointed
+    if rig.current_epoch_id[well_id] != 0 && rig.current_epoch_id[well_id] < well.epoch_id {
+        assert!(rig.checkpointed_epoch_id[well_id] >= rig.current_epoch_id[well_id], "Miner has not checkpointed previous epoch");
     }
     
     well.update_accumulated_oil(&clock);
@@ -145,7 +174,89 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
         .checked_add(bid_amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;
     
+    // Create Micro account for previous epoch before incrementing epoch_id
+    let previous_epoch_id = well.epoch_id;
+    let was_pool_owner = previous_owner == POOL_ADDRESS;
+    let pool_never_bid = well.total_contributed > 0 && !was_pool_owner;
+    
+    if was_pool_owner || pool_never_bid {
+        // Create Micro account for previous epoch
+        micro_info.is_writable()?.has_seeds(&[MICRO, &well_id.to_le_bytes(), &previous_epoch_id.to_le_bytes()], &oil_api::ID)?;
+        
+        if micro_info.data_is_empty() {
+            create_program_account::<Micro>(
+                micro_info,
+                system_program,
+                signer_info,
+                &oil_api::ID,
+                &[MICRO, &well_id.to_le_bytes(), &previous_epoch_id.to_le_bytes()],
+            )?;
+        }
+        
+        let micro = micro_info.as_account_mut::<Micro>(&oil_api::ID)?;
+        
+        if was_pool_owner {
+            // Pool was owner: calculate original total_contributed
+            let original_total = well.total_contributed
+                .checked_add(well.pool_bid_cost)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            
+            micro.well_id = well_id as u64;
+            micro.epoch_id = previous_epoch_id;
+            micro.total_contributed = original_total;
+            micro.total_oil_mined = accumulated_oil;
+            micro.total_refund = previous_owner_amount
+                .checked_add(well.total_contributed)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            micro.pool_members = 0; // Optional: can be calculated from Share accounts if needed
+            
+            // FOGO is already in Treasury, so leftover goes to auction_rewards_sol for distribution
+            let leftover = well.total_contributed;
+            if leftover > 0 {
+                treasury.auction_rewards_sol = treasury.auction_rewards_sol
+                    .checked_add(leftover)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+            }
+            
+            // Decrement Treasury auction_total_pooled by original_total (all pool funds for this epoch)
+            treasury.auction_total_pooled = treasury.auction_total_pooled
+                .checked_sub(original_total)
+                .ok_or(ProgramError::InsufficientFunds)?;
+            
+            // Reset pool fields
+            well.total_contributed = 0;
+            well.pool_bid_cost = 0;
+        } else if pool_never_bid {
+            // Pool existed but never bid: only pool contributions
+            micro.well_id = well_id as u64;
+            micro.epoch_id = previous_epoch_id;
+            micro.total_contributed = well.total_contributed;
+            micro.total_oil_mined = 0; // Pool never mined OIL
+            micro.total_refund = well.total_contributed; // Only pool contributions
+            micro.pool_members = 0;
+            
+            // FOGO is already in Treasury, so leftover goes to auction_rewards_sol for distribution
+            let leftover = well.total_contributed;
+            if leftover > 0 {
+                treasury.auction_rewards_sol = treasury.auction_rewards_sol
+                    .checked_add(leftover)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+            }
+            
+            // Decrement Treasury auction_total_pooled by pool contributions
+            treasury.auction_total_pooled = treasury.auction_total_pooled
+                .checked_sub(well.total_contributed)
+                .ok_or(ProgramError::InsufficientFunds)?;
+            
+            // Reset pool field
+            well.total_contributed = 0;
+        }
+    }
+    
     well.epoch_id += 1;
+    
+    // Update Rig current_epoch_id
+    rig.current_epoch_id[well_id] = well.epoch_id;
     well.current_bidder = authority;
     well.init_price = if is_at_floor {
         auction.starting_prices[well_id]
