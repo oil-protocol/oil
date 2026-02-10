@@ -15,13 +15,13 @@ pub mod prelude {
     pub use crate::sdk::*;
     // Export state types explicitly to avoid ambiguous re-export warning
     pub use crate::state::{
-        Auction, Automation, AutomationStrategy, Board, Config, Micro, Miner, OilAccount, Pool, Referral, Rig, Round, Share, Stake, Treasury, Well,
+        Auction, Automation, AutomationStrategy, Board, Config, Micro, Miner, OilAccount, Pool, Referral, Round, Share, Stake, Treasury, Well,
         Whitelist,
     };
     // Re-export state module functions (PDAs, etc.)
     pub use crate::state::{
         auction_pda, automation_pda, board_pda, config_pda, micro_pda, miner_pda, pool_pda, pool_tokens_address,
-        referral_pda, rig_pda, round_pda, share_pda, stake_pda, stake_pda_with_id, treasury_pda, treasury_tokens_address, well_pda,
+        referral_pda, round_pda, share_pda, stake_pda, stake_pda_with_id, treasury_pda, treasury_tokens_address, well_pda,
         whitelist_pda,
     };
     // Re-export utils

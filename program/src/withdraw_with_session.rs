@@ -15,14 +15,14 @@ pub fn process_withdraw_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: 
     }
 
     let clock = Clock::get()?;
-    let [program_signer_info, payer_info, authority_info, mint_info, recipient_info, stake_info, stake_tokens_info, pool_info, pool_tokens_info, miner_info, treasury_info, treasury_oil_info, system_program, token_program, associated_token_program] =
+    let [signer_info, authority_info, program_signer_info, payer_info, mint_info, recipient_info, stake_info, stake_tokens_info, pool_info, pool_tokens_info, miner_info, treasury_info, treasury_oil_info, system_program, token_program, associated_token_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-    program_signer_info.is_signer()?;
-    payer_info.is_signer()?;
+    signer_info.is_signer()?;
     
+    fogo::validate_session(signer_info)?;
     fogo::validate_program_signer(program_signer_info)?;
     
     let authority = *authority_info.key;

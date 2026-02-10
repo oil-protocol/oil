@@ -85,7 +85,7 @@ pub fn process_claim_auction_oil(accounts: &[AccountInfo<'_>], data: &[u8]) -> P
             .as_account_mut::<Well>(&oil_api::ID)?;
 
         // Update accumulated OIL
-        well.update_accumulated_oil(&clock);
+        well.update_accumulated_oil(auction, &clock);
         well.check_and_apply_halving(auction, &clock);
 
         // Only solo owners can claim

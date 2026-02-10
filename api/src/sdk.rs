@@ -774,19 +774,19 @@ pub fn set_var_address(signer: Pubkey, new_var_address: Pubkey) -> Instruction {
     }
 }
 
-/// Migrate: Extend Treasury struct with liquidity field.
-/// This migration ensures the Treasury account has the new liquidity field available.
+/// Migrate Miner: Extend Miner struct with 2 [u64; 4] arrays (current_epoch_id, checkpointed_epoch_id).
+/// This migration moves current_epoch_id and checkpointed_epoch_id from Rig to Miner.
 /// Must be called by the admin.
-/// Accounts: signer, config, treasury, system_program
-pub fn migrate(signer: Pubkey) -> Instruction {
+/// Accounts: signer, config, miner, system_program
+pub fn migrate(signer: Pubkey, miner_authority: Pubkey) -> Instruction {
     let config_address = config_pda().0;
-    let treasury_address = treasury_pda().0;
+    let miner_address = miner_pda(miner_authority).0;
     Instruction {
         program_id: crate::ID,
         accounts: vec![
             AccountMeta::new(signer, true),
             AccountMeta::new(config_address, false),
-            AccountMeta::new(treasury_address, false),
+            AccountMeta::new(miner_address, false),
             AccountMeta::new_readonly(system_program::ID, false),
         ],
         data: Migrate {}.to_bytes(),

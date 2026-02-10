@@ -10,19 +10,19 @@ pub fn process_claim_auction_oil_with_session<'a>(accounts: &'a [AccountInfo<'a>
     let args = ClaimAuctionOIL::try_from_bytes(data)?;
     let well_mask = args.well_mask;
 
-    if accounts.len() < 19 {
+    if accounts.len() < 20 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let [program_signer_info, payer_info, authority_info, miner_info, well_0_info, well_1_info, well_2_info, well_3_info, auction_info, treasury_info, treasury_tokens_info, mint_info, mint_authority_info, mint_program, recipient_info, token_program, associated_token_program, system_program, oil_program] =
-        &accounts[0..19]
+    let [signer_info, authority_info, program_signer_info, payer_info, miner_info, well_0_info, well_1_info, well_2_info, well_3_info, auction_info, treasury_info, treasury_tokens_info, mint_info, mint_authority_info, mint_program, recipient_info, token_program, associated_token_program, system_program, oil_program] =
+        &accounts[0..20]
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    program_signer_info.is_signer()?;
-    payer_info.is_signer()?;
+    signer_info.is_signer()?;
     
+    fogo::validate_session(signer_info)?;
     fogo::validate_program_signer(program_signer_info)?;
     
     let authority = *authority_info.key;
@@ -84,7 +84,7 @@ pub fn process_claim_auction_oil_with_session<'a>(accounts: &'a [AccountInfo<'a>
             .has_seeds(&[WELL, &well_id_u64.to_le_bytes()], &oil_api::ID)?
             .as_account_mut::<Well>(&oil_api::ID)?;
 
-        well.update_accumulated_oil(&clock);
+        well.update_accumulated_oil(auction, &clock);
         well.check_and_apply_halving(auction, &clock);
 
         let is_solo_owner = well.current_bidder == authority;

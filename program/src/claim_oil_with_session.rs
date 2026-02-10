@@ -8,25 +8,26 @@ use steel::*;
 pub fn process_claim_oil_with_session<'a>(accounts: &'a [AccountInfo<'a>], _data: &[u8]) -> ProgramResult {
     let clock = Clock::get()?;
     
-    if accounts.len() < 11 {
+    if accounts.len() < 12 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     
-    let program_signer_info = &accounts[0];
-    let payer_info = &accounts[1];
-    let authority_info = &accounts[2];
-    let miner_info = &accounts[3];
-    let mint_info = &accounts[4];
-    let recipient_info = &accounts[5];
-    let treasury_info = &accounts[6];
-    let treasury_tokens_info = &accounts[7];
-    let system_program = &accounts[8];
-    let token_program = &accounts[9];
-    let associated_token_program = &accounts[10];
+    let signer_info = &accounts[0];
+    let authority_info = &accounts[1];
+    let program_signer_info = &accounts[2];
+    let payer_info = &accounts[3];
+    let miner_info = &accounts[4];
+    let mint_info = &accounts[5];
+    let recipient_info = &accounts[6];
+    let treasury_info = &accounts[7];
+    let treasury_tokens_info = &accounts[8];
+    let system_program = &accounts[9];
+    let token_program = &accounts[10];
+    let associated_token_program = &accounts[11];
     
-    program_signer_info.is_signer()?;
-    payer_info.is_signer()?;
+    signer_info.is_signer()?;
     
+    fogo::validate_session(signer_info)?;
     fogo::validate_program_signer(program_signer_info)?;
     
     let authority = *authority_info.key;
@@ -59,16 +60,16 @@ pub fn process_claim_oil_with_session<'a>(accounts: &'a [AccountInfo<'a>], _data
     let total_amount = miner.claim_oil(&clock, treasury);
 
     let referral_amount = if miner.referrer != Pubkey::default() {
-        if accounts.len() < 14 {
+        if accounts.len() < 15 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
         
-        let miner_referrer_idx = 11;
+        let miner_referrer_idx = 12;
         let miner_referrer_info = &accounts[miner_referrer_idx];
         miner_referrer_info
             .has_seeds(&[MINER, &miner.referrer.to_bytes()], &oil_api::ID)?;
         
-        let referral_referrer_idx = 12;
+        let referral_referrer_idx = 13;
         let referral_referrer_info = &accounts[referral_referrer_idx];
         referral_referrer_info
             .has_seeds(&[REFERRAL, &miner.referrer.to_bytes()], &oil_api::ID)?;
@@ -103,8 +104,8 @@ pub fn process_claim_oil_with_session<'a>(accounts: &'a [AccountInfo<'a>], _data
     }
     
     if referral_amount > 0 {
-        let referral_referrer_info = &accounts[12];
-        let referral_referrer_oil_ata_info = &accounts[13];
+        let referral_referrer_info = &accounts[13];
+        let referral_referrer_oil_ata_info = &accounts[14];
                     
         if referral_referrer_oil_ata_info.data_is_empty() {
             create_associated_token_account(

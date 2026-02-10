@@ -206,19 +206,22 @@ pub fn process_initialize(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramR
             &[AUCTION],
         )?;
         let auction = auction_info.as_account_mut::<Auction>(&oil_api::ID)?;
-        // Time-based halving: use halving_period_seconds from instruction (defaults to 28 days = 2,419,200 seconds)
+        // Time-based halving: 
+        // - First halving: 14 days (50% reduction)
+        // - Subsequent halvings: 28 days (25% reduction each)
         auction.halving_period_seconds = if halving_period_seconds > 0 {
             halving_period_seconds
         } else {
-            28 * 24 * 60 * 60 // Default to 28 days if not provided
+            28 * 24 * 60 * 60 // Default to 28 days for subsequent halvings
         };
-        auction.last_halving_time = current_timestamp; // Set to current time (first halving will be halving_period_seconds from now)
+        auction.last_halving_time = current_timestamp; // Set to current time (first halving will be 14 days from now)
+        auction.halving_count = 0; // No halvings yet
         auction.base_mining_rates = base_mining_rates;
         auction.auction_duration_seconds = auction_duration_seconds;
         auction.starting_prices = starting_prices;
         auction.buffer_a = Numeric::ZERO;
+        auction.halving_count = 0; // No halvings yet
         // Buffer fields (for future use)
-        auction.buffer_b = 0;
         auction.buffer_c = 0;
         auction.buffer_d = 0;
     } else {

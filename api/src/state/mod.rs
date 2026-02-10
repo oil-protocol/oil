@@ -6,7 +6,6 @@ mod micro;
 mod miner;
 mod pool;
 mod referral;
-mod rig;
 mod round;
 mod share;
 mod well;
@@ -22,7 +21,6 @@ pub use micro::*;
 pub use miner::*;
 pub use pool::*;
 pub use referral::*;
-pub use rig::*;
 pub use round::*;
 pub use share::*;
 pub use well::*;
@@ -48,7 +46,6 @@ pub enum OilAccount {
     Pool = 111,
     Auction = 114,
     Well = 115,
-    Rig = 116,
     Whitelist = 117,
     Micro = 118,
     Share = 119,
@@ -113,10 +110,6 @@ pub fn well_pda(well_id: u64) -> (Pubkey, u8) {
 
 pub fn whitelist_pda(code_hash: [u8; 32]) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[WHITELIST, &code_hash], &crate::ID)
-}
-
-pub fn rig_pda(authority: Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[RIG, &authority.to_bytes()], &crate::ID)
 }
 
 pub fn micro_pda(well_id: u64, epoch_id: u64) -> (Pubkey, u8) {

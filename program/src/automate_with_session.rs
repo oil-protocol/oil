@@ -112,6 +112,7 @@ pub fn process_automate_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: 
             )?
     };
 
+    // Create user's wrapped SOL ATA if needed (needed for transfers)
     create_or_validate_wrapped_sol_ata(
         user_wrapped_sol_info,
         authority_info,
@@ -123,6 +124,7 @@ pub fn process_automate_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: 
         None,
     )?;
     
+    // Create automation's wrapped SOL ATA if needed (temporary, just for Fogo session transfers)
     create_or_validate_wrapped_sol_ata(
         automation_wrapped_sol_info,
         automation_info,
@@ -165,7 +167,7 @@ pub fn process_automate_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: 
             automation_info.key,
             &[],
         )?;
-        solana_program::program::invoke_signed(
+        invoke_signed(
             &close_ix,
             &[
                 automation_wrapped_sol_info.clone(),
@@ -173,7 +175,8 @@ pub fn process_automate_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: 
                 automation_info.clone(),
                 token_program_info.clone(),
             ],
-            &[automation_seeds],
+            &oil_api::ID,
+            automation_seeds,
         )?;
         
         automation_info.send(CHECKPOINT_FEE, miner_info);
@@ -196,7 +199,7 @@ pub fn process_automate_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: 
         automation_info.key,
         &[],
     )?;
-    solana_program::program::invoke_signed(
+    invoke_signed(
         &close_ix,
         &[
             automation_wrapped_sol_info.clone(),
@@ -204,7 +207,8 @@ pub fn process_automate_with_session<'a>(accounts: &'a [AccountInfo<'a>], data: 
             automation_info.clone(),
             token_program_info.clone(),
         ],
-        &[automation_seeds],
+        &oil_api::ID,
+        automation_seeds,
     )?;
 
     if miner.checkpoint_fee == CHECKPOINT_FEE {

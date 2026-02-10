@@ -18,21 +18,21 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     let has_referral = referrer != Pubkey::default();
     // Account order: signer, authority, well, auction, treasury, treasury_tokens, mint, mint_authority, mint_program,
     // staking_pool, fee_collector, config, token_program, system_program, oil_program, bidder_miner, previous_owner_miner,
-    // rig, micro, referral (optional)
-    let expected_len = 19 + if has_referral { 1 } else { 0 };
+    // micro, referral (optional)
+    let expected_len = 18 + if has_referral { 1 } else { 0 };
     
     if accounts.len() < expected_len {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     
     let mut accounts_iter = accounts.iter();
-    oil_api::extract_accounts!(accounts_iter, [s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, r, mic]);
+    oil_api::extract_accounts!(accounts_iter, [s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, mic]);
     let ref_info = if has_referral { accounts_iter.next() } else { None };
     let (signer_info, authority_info, well_info, auction_info, 
          treasury_info, treasury_tokens_info, mint_info, mint_authority_info, mint_program, staking_pool_info, 
          fee_collector_info, config_info, token_program, system_program, oil_program, bidder_miner_info, 
-         previous_owner_miner_info, rig_info, micro_info, referral_info_opt) = 
-         (s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, r, mic, ref_info);
+         previous_owner_miner_info, micro_info, referral_info_opt) = 
+         (s, a, w, au, t, tt, m, ma, mp, sp, fc, c, tp, sys, op, bm, pom, mic, ref_info);
 
     signer_info.is_signer()?;
     let authority = *authority_info.key;
@@ -59,10 +59,10 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     system_program.is_program(&system_program::ID)?;
     oil_program.is_program(&oil_api::ID)?;
     
+    // Load or create bidder miner account
+    bidder_miner_info.is_writable()?.has_seeds(&[MINER, &authority.to_bytes()], &oil_api::ID)?;
     let is_new_miner = bidder_miner_info.data_is_empty();
     if is_new_miner {
-        bidder_miner_info.is_writable()?.has_seeds(&[MINER, &authority.to_bytes()], &oil_api::ID)?;
-
         create_program_account::<Miner>(
             bidder_miner_info,
             system_program,
@@ -83,33 +83,16 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
         }
     }
     
-    // Create or load Rig account
-    let rig = if rig_info.data_is_empty() {
-        rig_info.is_writable()?.has_seeds(&[RIG, &authority.to_bytes()], &oil_api::ID)?;
-        create_program_account::<Rig>(
-            rig_info,
-            system_program,
-            signer_info,
-            &oil_api::ID,
-            &[RIG, &authority.to_bytes()],
-        )?;
-        let r = rig_info.as_account_mut::<Rig>(&oil_api::ID)?;
-        r.initialize(authority);
-        r
-    } else {
-        rig_info.is_writable()?.has_seeds(&[RIG, &authority.to_bytes()], &oil_api::ID)?;
-        let r = rig_info.as_account_mut::<Rig>(&oil_api::ID)?;
-        r.assert_mut(|r| r.authority == authority)?;
-        r
-    };
+    // Load bidder miner for checkpoint validation
+    let bidder_miner = bidder_miner_info.as_account::<Miner>(&oil_api::ID)?;
     
     // Checkpoint requirement: Must checkpoint previous epoch before placing bid
     // Similar to block-based mining: if miner.round_id != round.id, must have checkpointed
-    if rig.current_epoch_id[well_id] != 0 && rig.current_epoch_id[well_id] < well.epoch_id {
-        assert!(rig.checkpointed_epoch_id[well_id] >= rig.current_epoch_id[well_id], "Miner has not checkpointed previous epoch");
+    if bidder_miner.current_epoch_id[well_id] != 0 && bidder_miner.current_epoch_id[well_id] < well.epoch_id {
+        assert!(bidder_miner.checkpointed_epoch_id[well_id] >= bidder_miner.current_epoch_id[well_id], "Miner has not checkpointed previous epoch");
     }
     
-    well.update_accumulated_oil(&clock);
+    well.update_accumulated_oil(auction, &clock);
     well.check_and_apply_halving(auction, &clock);
 
     let current_price = well.current_price(auction, &clock);
@@ -255,8 +238,9 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     
     well.epoch_id += 1;
     
-    // Update Rig current_epoch_id
-    rig.current_epoch_id[well_id] = well.epoch_id;
+    // Update Miner current_epoch_id
+    let bidder_miner_mut = bidder_miner_info.as_account_mut::<Miner>(&oil_api::ID)?;
+    bidder_miner_mut.current_epoch_id[well_id] = well.epoch_id;
     well.current_bidder = authority;
     well.init_price = if is_at_floor {
         auction.starting_prices[well_id]
@@ -268,6 +252,9 @@ pub fn process_place_bid(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramRe
     well.operator_total_oil_mined = 0;
     well.last_update_time = clock.unix_timestamp as u64;
     well.mps = auction.base_mining_rates[well_id];
+    // Apply all halvings that have already occurred
+    well.apply_existing_halvings(auction);
+    // Check for and apply any new halvings that should occur now
     well.check_and_apply_halving(auction, &clock);
     
     // Validate auction account right before auction_program_log (matching pattern from claim_auction_sol.rs)

@@ -282,10 +282,13 @@ pub struct Contribute {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct CheckpointAuction {
-    /// Well ID to checkpoint (0-3)
-    pub well_id: [u8; 8],
-    /// Epoch ID to checkpoint
-    pub epoch_id: [u8; 8],
+    /// Well mask: bit 0 = well 0, bit 1 = well 1, bit 2 = well 2, bit 3 = well 3
+    /// Allows checkpointing multiple wells in a single instruction
+    pub well_mask: u8,
+    /// Epoch IDs for each well (0-3), in order
+    /// If well_mask bit is set, corresponding epoch_id must be provided
+    /// If well_mask bit is not set, epoch_id is ignored
+    pub epoch_ids: [[u8; 8]; 4],
 }
 
 instruction!(OilInstruction, Automate);

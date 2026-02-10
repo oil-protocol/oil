@@ -524,7 +524,7 @@
         {
           "isMut": true,
           "isSigner": false,
-          "name": "rig"
+          "name": "miner"
         },
         {
           "isMut": true,
@@ -591,7 +591,7 @@
         {
           "isMut": true,
           "isSigner": false,
-          "name": "rig"
+          "name": "miner"
         },
         {
           "isMut": true,
@@ -624,17 +624,12 @@
         {
           "isMut": true,
           "isSigner": false,
-          "name": "rig"
-        },
-        {
-          "isMut": true,
-          "isSigner": false,
           "name": "miner"
         },
         {
           "isMut": true,
           "isSigner": false,
-          "name": "share"
+          "name": "[share"
         },
         {
           "isMut": true,
@@ -644,7 +639,7 @@
         {
           "isMut": true,
           "isSigner": false,
-          "name": "well"
+          "name": "well for each well]"
         },
         {
           "isMut": false,
@@ -654,11 +649,11 @@
       ],
       "args": [
         {
-          "name": "well_id",
-          "type": "u64"
+          "name": "well_mask",
+          "type": "u8"
         },
         {
-          "name": "epoch_id",
+          "name": "epoch_ids",
           "type": "u64"
         }
       ],
@@ -667,7 +662,8 @@
         "value": 55
       },
       "docs": [
-        "User checkpoints their auction rewards for a specific epoch"
+        "User checkpoints their auction rewards for multiple wells/epochs",
+        "Supports batch checkpointing: well_mask allows checkpointing multiple wells in a single instruction"
       ],
       "name": "checkpointAuction"
     },
@@ -691,17 +687,12 @@
         {
           "isMut": true,
           "isSigner": false,
-          "name": "rig"
-        },
-        {
-          "isMut": true,
-          "isSigner": false,
           "name": "miner"
         },
         {
           "isMut": true,
           "isSigner": false,
-          "name": "share"
+          "name": "[share"
         },
         {
           "isMut": true,
@@ -711,7 +702,7 @@
         {
           "isMut": true,
           "isSigner": false,
-          "name": "well"
+          "name": "well for each well]"
         },
         {
           "isMut": false,
@@ -725,7 +716,8 @@
         "value": 56
       },
       "docs": [
-        "User checkpoints their auction rewards for a specific epoch"
+        "User checkpoints their auction rewards for multiple wells/epochs",
+        "Supports batch checkpointing: well_mask allows checkpointing multiple wells in a single instruction"
       ],
       "name": "checkpointAuctionWithSession"
     },
@@ -972,7 +964,8 @@
         "value": 26
       },
       "docs": [
-        "Migrate: Extend Treasury struct with 2 u64 fields (buffer_b and auction_total_pooled)"
+        "Migrate Miner: Extend with 2 [u64; 4] arrays",
+        "This moves current_epoch_id and checkpointed_epoch_id from Rig to Miner"
       ],
       "name": "migrate"
     },
@@ -1241,16 +1234,20 @@
         "The pooled deployed amount of this miner.",
         "OIL rewards from auction wells (not yet claimed)",
         "SOL rewards from auction wells (not yet claimed)",
-        "The rewards factor last time auction rewards were updated on this rig account.",
-        "The amount of OIL this rig has earned from auction claim fees (refined OIL).",
-        "The last time this rig claimed OIL rewards.",
-        "The last time this rig claimed SOL rewards.",
+        "The rewards factor last time auction rewards were updated on this miner account.",
+        "The amount of OIL this miner has earned from auction claim fees (refined OIL).",
+        "The last time this miner claimed OIL rewards.",
+        "The last time this miner claimed SOL rewards.",
         "The total amount of SOL this miner has mined across all blocks.",
         "The total amount of OIL this miner has mined across all blocks.",
         "The total amount of OIL this miner has deployed across all rounds.",
         "The pubkey of the referrer who referred this miner.",
         "Total stake score across all stake accounts for this miner.",
-        "XP system (future development)"
+        "XP system (future development)",
+        "Last epoch participated in per well (index = well_id, 0-3)",
+        "Moved from Rig to Miner to free Rig for progression/Refinery mode",
+        "Last epoch checkpointed per well (index = well_id, 0-3)",
+        "Moved from Rig to Miner to free Rig for progression/Refinery mode"
       ],
       "name": "Miner",
       "type": {
@@ -1361,6 +1358,14 @@
           },
           {
             "name": "buffer_a",
+            "type": "u64"
+          },
+          {
+            "name": "current_epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "checkpointed_epoch_id",
             "type": "u64"
           }
         ],
@@ -1822,17 +1827,23 @@
       ],
       "docs": [
         "Singleton auction configuration account",
-        "Halving period in seconds (28 days = 2,419,200 seconds)",
+        "Subsequent halving period in seconds (28 days = 2,419,200 seconds)",
         "Timestamp of the last halving event (Unix timestamp in seconds)",
         "Base mining rates per well (OIL per second, in atomic units)",
         "Auction duration in seconds (1 hour = 3600)",
         "Starting prices per well (in lamports)",
         "Buffer field (for future use)",
-        "Buffer field (for future use) - previously min_pool_contribution",
+        "Number of halvings that have occurred (0 = none, 1 = first 50% halving, 2+ = 25% halvings)",
         "Buffer field (for future use)",
         "Buffer field (for future use)",
+        "First halving period in seconds (14 days = 1,209,600 seconds)",
+        "This is a constant, not stored in the account",
         "Get the timestamp when the next halving should occur",
-        "Check if halving should be applied based on current time"
+        "Check if halving should be applied based on current time",
+        "Returns (halvings_to_apply, is_first_halving)",
+        "/// Schedule:",
+        "- First halving: 14 days after initialization (50% reduction)",
+        "- Subsequent halvings: Every 28 days after first halving (25% reduction each)"
       ],
       "name": "Auction",
       "type": {
@@ -1862,7 +1873,7 @@
             "type": "u64"
           },
           {
-            "name": "buffer_b",
+            "name": "halving_count",
             "type": "u64"
           },
           {
@@ -1907,7 +1918,17 @@
         "Reset to 0 when epoch ends",
         "Pool bid cost - stores the bid_amount when pool bids",
         "Used to calculate original_total when pool gets outbid",
-        "Reset to 0 when epoch ends"
+        "Reset to 0 when epoch ends",
+        "Calculate the effective mining rate at a given point in time based on base rate and halvings",
+        "Calculate how many halvings had occurred by a given timestamp",
+        "/// Halving schedule:",
+        "- First halving: 14 days after initialization (at last_halving_time + FIRST_HALVING_PERIOD_SECONDS when halving_count = 0)",
+        "- Subsequent halvings: Every 28 days after the first halving",
+        "/// When halving_count > 0, last_halving_time is when the most recent halving occurred.",
+        "Apply all halvings that have already occurred (based on auction.halving_count)",
+        "This is used when resetting well.mps to base rate in a new epoch",
+        "/// Safety: This function assumes well.mps has just been reset to base rate.",
+        "It applies all halvings that have occurred according to auction.halving_count."
       ],
       "name": "Well",
       "type": {
@@ -1966,57 +1987,6 @@
           },
           {
             "name": "pool_bid_cost",
-            "type": "u64"
-          }
-        ],
-        "kind": "struct"
-      }
-    },
-    {
-      "discriminator": [
-        116,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "docs": [
-        "Rig account tracks a user's auction participation and checkpoint status across all wells",
-        "Authority (user's wallet)",
-        "Last epoch participated in per well (index = well_id, 0-3)",
-        "Last epoch checkpointed per well (index = well_id, 0-3)",
-        "Buffer field for future extensions",
-        "Buffer field for future extensions",
-        "Buffer field for future extensions"
-      ],
-      "name": "Rig",
-      "type": {
-        "fields": [
-          {
-            "name": "authority",
-            "type": "u64"
-          },
-          {
-            "name": "current_epoch_id",
-            "type": "u64"
-          },
-          {
-            "name": "checkpointed_epoch_id",
-            "type": "u64"
-          },
-          {
-            "name": "buffer_a",
-            "type": "u64"
-          },
-          {
-            "name": "buffer_b",
-            "type": "u64"
-          },
-          {
-            "name": "buffer_c",
             "type": "u64"
           }
         ],

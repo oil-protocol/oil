@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["api", "program", "cli"]
-exclude = ["server", "indexer", "bots", "entropy-api", "governance"]
+members = ["api", "program", "cli", "scripts-idl"]
 
 [workspace.package]
 version = "0.1.5"

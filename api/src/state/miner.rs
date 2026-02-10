@@ -54,16 +54,16 @@ pub struct Miner {
     /// SOL rewards from auction wells (not yet claimed)
     pub auction_rewards_sol: u64,
 
-    /// The rewards factor last time auction rewards were updated on this rig account.
+    /// The rewards factor last time auction rewards were updated on this miner account.
     pub auction_rewards_factor: Numeric,
 
-    /// The amount of OIL this rig has earned from auction claim fees (refined OIL).
+    /// The amount of OIL this miner has earned from auction claim fees (refined OIL).
     pub auction_refined_oil: u64,
 
-    /// The last time this rig claimed OIL rewards.
+    /// The last time this miner claimed OIL rewards.
     pub last_claim_auction_oil_at: i64,
 
-    /// The last time this rig claimed SOL rewards.
+    /// The last time this miner claimed SOL rewards.
     pub last_claim_auction_sol_at: i64,
 
     /// The total amount of SOL this miner has mined across all blocks.
@@ -86,6 +86,14 @@ pub struct Miner {
     pub is_seeker: u64,
     /// XP system (future development)
     pub buffer_a: u64,
+    
+    /// Last epoch participated in per well (index = well_id, 0-3)
+    /// Moved from Rig to Miner to free Rig for progression/Refinery mode
+    pub current_epoch_id: [u64; 4],
+    
+    /// Last epoch checkpointed per well (index = well_id, 0-3)
+    /// Moved from Rig to Miner to free Rig for progression/Refinery mode
+    pub checkpointed_epoch_id: [u64; 4],
 }
 
 impl Miner {
@@ -121,6 +129,8 @@ impl Miner {
         self.lifetime_bid = 0;
         self.referrer = Pubkey::default();
         self.total_stake_score = 0;
+        self.current_epoch_id = [0; 4];
+        self.checkpointed_epoch_id = [0; 4];
     }
 
     pub fn claim_oil(&mut self, clock: &Clock, treasury: &mut Treasury) -> u64 {

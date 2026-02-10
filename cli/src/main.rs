@@ -1124,37 +1124,59 @@ async fn verify_migration(rpc: &RpcClient) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-/// Migrate: Extend Treasury struct with 2 u64 fields (buffer_b and auction_total_pooled).
+/// Migrate Miner: Extend Miner struct with 2 [u64; 4] arrays (current_epoch_id, checkpointed_epoch_id).
+/// Requires MINER_AUTHORITY environment variable (the wallet address of the miner to migrate).
 async fn migrate(
     rpc: &RpcClient,
     payer: &solana_sdk::signer::keypair::Keypair,
 ) -> Result<(), anyhow::Error> {
-    let treasury_address = oil_api::state::treasury_pda().0;
+    // Get miner authority from environment variable
+    let miner_authority_str = std::env::var("MINER_AUTHORITY")
+        .map_err(|_| anyhow::anyhow!("Missing MINER_AUTHORITY env var (wallet address of miner to migrate)"))?;
+    let miner_authority = Pubkey::from_str(&miner_authority_str)
+        .map_err(|e| anyhow::anyhow!("Invalid MINER_AUTHORITY: {}", e))?;
+    
+    let miner_address = oil_api::state::miner_pda(miner_authority).0;
 
-    println!("\n🔧 Treasury Migration");
-    println!("   Treasury: {}", treasury_address);
+    println!("\n🔧 Miner Migration");
+    println!("   Miner Authority: {}", miner_authority);
+    println!("   Miner Account: {}", miner_address);
 
-    // Check current treasury
-    let treasury_account = rpc.get_account(&treasury_address).await?;
-    let expected_treasury_size = 144; // 8 discriminator + 136 data bytes (adding 2 u64 fields = 16 bytes)
+    // Check if miner account exists
+    let miner_account = match rpc.get_account(&miner_address).await {
+        Ok(account) => account,
+        Err(_) => {
+            println!("   ⚠️  Miner account does not exist at {}", miner_address);
+            return Err(anyhow::anyhow!("Miner account not found"));
+        }
+    };
+    
+    let expected_miner_size = 736; // 8 discriminator + 728 data bytes (adding 2 [u64; 4] = 64 bytes)
     
     println!("\n📊 Current State:");
-    println!("   Treasury account size: {} bytes", treasury_account.data.len());
-    println!("   Expected size: {} bytes", expected_treasury_size);
+    println!("   Miner account size: {} bytes", miner_account.data.len());
+    println!("   Expected size: {} bytes", expected_miner_size);
     
-    let is_migrated = treasury_account.data.len() >= expected_treasury_size;
+    let is_migrated = miner_account.data.len() >= expected_miner_size;
     
     if is_migrated {
         println!("   Status: ✅ Already migrated");
-        println!("\n   ✅ No migration needed. Treasury already has buffer_b and auction_total_pooled fields.");
+        println!("\n   ✅ No migration needed. Miner already has current_epoch_id and checkpointed_epoch_id arrays.");
         return Ok(());
     }
     
+    // Verify current size matches expected old size
+    let expected_old_size = 672; // 8 discriminator + 664 data bytes
+    if miner_account.data.len() != expected_old_size {
+        println!("   ⚠️  Warning: Miner size is {} bytes, expected {} bytes", miner_account.data.len(), expected_old_size);
+        println!("   Continuing anyway - might be a different version");
+    }
+    
     println!("   Status: ⚠️  Needs migration");
-    println!("\n   📦 Will extend Treasury struct with 2 u64 fields (buffer_b and auction_total_pooled, 16 bytes total)");
+    println!("\n   📦 Will extend Miner struct with 2 [u64; 4] arrays (current_epoch_id, checkpointed_epoch_id, 64 bytes total)");
     
     // Build migrate instruction
-    let migrate_ix = oil_api::sdk::migrate(payer.pubkey());
+    let migrate_ix = oil_api::sdk::migrate(payer.pubkey(), miner_authority);
     
     // Debug: Print instruction details
     println!("\n   🔍 Instruction details:");
@@ -1222,16 +1244,16 @@ async fn migrate(
     println!("\n   🔍 Verifying migration...");
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await; // Wait for confirmation
     
-    let treasury_account_after = rpc.get_account(&treasury_address).await?;
-    let is_migrated_after = treasury_account_after.data.len() >= expected_treasury_size;
+    let miner_account_after = rpc.get_account(&miner_address).await?;
+    let is_migrated_after = miner_account_after.data.len() >= expected_miner_size;
     
-    println!("   Treasury account size after: {} bytes", treasury_account_after.data.len());
+    println!("   Miner account size after: {} bytes", miner_account_after.data.len());
     
     if is_migrated_after {
-        println!("   ✅ Treasury migration successful! buffer_b and auction_total_pooled fields are now available.");
-        println!("   Note: The new fields will be initialized to 0.");
+        println!("   ✅ Miner migration successful! current_epoch_id and checkpointed_epoch_id arrays are now available.");
+        println!("   Note: The new arrays will be initialized to all zeros.");
     } else {
-        println!("   ⚠️  Migration may have failed. Treasury size didn't increase as expected.");
+        println!("   ⚠️  Migration may have failed. Miner size didn't increase as expected.");
         println!("   Check transaction logs for details.");
     }
     

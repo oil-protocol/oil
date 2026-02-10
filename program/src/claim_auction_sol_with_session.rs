@@ -11,16 +11,16 @@ pub fn process_claim_auction_sol_with_session<'a>(accounts: &'a [AccountInfo<'a>
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let [program_signer_info, payer_info, authority_info, miner_info, treasury_info, auction_info, system_program, oil_program] =
+    let [signer_info, authority_info, program_signer_info, miner_info, treasury_info, auction_info, system_program, oil_program] =
         &accounts[0..8]
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-    program_signer_info.is_signer()?;
-    payer_info.is_signer()?;
+    signer_info.is_signer()?;
     authority_info.is_writable()?;
     
+    fogo::validate_session(signer_info)?;
     fogo::validate_program_signer(program_signer_info)?;
     
     let authority = *authority_info.key;

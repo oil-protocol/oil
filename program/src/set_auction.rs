@@ -57,15 +57,14 @@ pub fn process_set_auction(accounts: &[AccountInfo<'_>], data: &[u8]) -> Program
     let halving_period_seconds_from_args = u64::from_le_bytes(args.halving_period_seconds);
     
     if auction.halving_period_seconds == 0 {
-        // Initialize to value from instruction (should be 28 days = 2,419,200 seconds)
+        // Initialize to value from instruction (should be 28 days = 2,419,200 seconds for subsequent halvings)
         auction.halving_period_seconds = if halving_period_seconds_from_args > 0 {
             halving_period_seconds_from_args
         } else {
-            28 * 24 * 60 * 60 // 28 days default
+            28 * 24 * 60 * 60 // 28 days default for subsequent halvings
         };
-        sol_log(&format!("ℹ️  Initialized halving_period_seconds to {} ({} days)", 
-            auction.halving_period_seconds,
-            auction.halving_period_seconds / (24 * 60 * 60)));
+        sol_log(&format!("ℹ️  Initialized halving_period_seconds to {} (28 days for subsequent halvings)", 
+            auction.halving_period_seconds));
     }
     
     if auction.last_halving_time == 0 {
@@ -76,9 +75,9 @@ pub fn process_set_auction(accounts: &[AccountInfo<'_>], data: &[u8]) -> Program
     
     sol_log(&format!("✅ Auction account updated: base_mining_rates={:?}, auction_duration={}", 
         auction.base_mining_rates, auction.auction_duration_seconds));
-    sol_log(&format!("   Time-based halving: period={}s ({} days), last_halving={}, next_halving={}", 
+    sol_log(&format!("   Time-based halving: first=14 days (50%), subsequent={}s (28 days, 25%), halving_count={}, last_halving={}, next_halving={}", 
         auction.halving_period_seconds,
-        auction.halving_period_seconds / (24 * 60 * 60),
+        auction.halving_count,
         auction.last_halving_time,
         auction.next_halving_time()));
     
@@ -99,7 +98,10 @@ pub fn process_set_auction(accounts: &[AccountInfo<'_>], data: &[u8]) -> Program
                 well.mps = new_base_mps;
                 
                 // Update accumulated OIL and apply halvings
-                well.update_accumulated_oil(&clock);
+                well.update_accumulated_oil(auction, &clock);
+                // Apply all halvings that have already occurred
+                well.apply_existing_halvings(auction);
+                // Check for and apply any new halvings that should occur now
                 well.check_and_apply_halving(auction, &clock);
                 
                 sol_log(&format!("✅ Synced well {} mps to {} (after halvings: {})", 

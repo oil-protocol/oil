@@ -21,7 +21,7 @@ pub fn process_contribute_with_session<'a>(accounts: &'a [AccountInfo<'a>], data
         return Err(ProgramError::InvalidArgument);
     }
     
-    // Account order: signer, authority, program_signer, payer, well, auction, treasury, rig, share,
+    // Account order: signer, authority, program_signer, payer, well, auction, treasury, miner, share,
     // treasury_wrapped_sol_ata, user_wrapped_sol_ata, token_program, mint, associated_token_program, system_program, oil_program
     let expected_len = 16;
     if accounts.len() < expected_len {
@@ -29,11 +29,11 @@ pub fn process_contribute_with_session<'a>(accounts: &'a [AccountInfo<'a>], data
     }
     
     let mut accounts_iter = accounts.iter();
-    oil_api::extract_accounts!(accounts_iter, [s, a, ps, pay, w, au, t, r, sh, tws, uws, tp, m, atap, sys, op]);
+    oil_api::extract_accounts!(accounts_iter, [s, a, ps, pay, w, au, t, m, sh, tws, uws, tp, mint, atap, sys, op]);
     let (signer_info, authority_info, program_signer_info, payer_info, well_info, auction_info, treasury_info,
-         rig_info, share_info, treasury_wrapped_sol_info, user_wrapped_sol_info, 
+         miner_info, share_info, treasury_wrapped_sol_info, user_wrapped_sol_info, 
          token_program_info, mint_info, ata_program_info, system_program, oil_program) = 
-         (s, a, ps, pay, w, au, t, r, sh, tws, uws, tp, m, atap, sys, op);
+         (s, a, ps, pay, w, au, t, m, sh, tws, uws, tp, mint, atap, sys, op);
     
     signer_info.is_signer()?;
     
@@ -61,7 +61,7 @@ pub fn process_contribute_with_session<'a>(accounts: &'a [AccountInfo<'a>], data
         return Err(ProgramError::InvalidArgument); // Can't contribute when pool already owns
     }
     
-    well.update_accumulated_oil(&clock);
+    well.update_accumulated_oil(auction, &clock);
     well.check_and_apply_halving(auction, &clock);
     
     let current_price = well.current_price(auction, &clock);
@@ -77,30 +77,28 @@ pub fn process_contribute_with_session<'a>(accounts: &'a [AccountInfo<'a>], data
         return Err(ProgramError::InvalidArgument); // No contribution needed
     }
     
-    // Create or load Rig account
-    let rig = if rig_info.data_is_empty() {
-        rig_info.is_writable()?.has_seeds(&[RIG, &authority.to_bytes()], &oil_api::ID)?;
-        create_program_account::<Rig>(
-            rig_info,
+    // Load or create miner account
+    miner_info.is_writable()?.has_seeds(&[MINER, &authority.to_bytes()], &oil_api::ID)?;
+    let is_new_miner = miner_info.data_is_empty();
+    if is_new_miner {
+        create_program_account::<Miner>(
+            miner_info,
             system_program,
             payer_info,
             &oil_api::ID,
-            &[RIG, &authority.to_bytes()],
+            &[MINER, &authority.to_bytes()],
         )?;
-        let r = rig_info.as_account_mut::<Rig>(&oil_api::ID)?;
-        r.initialize(authority);
-        r
-    } else {
-        rig_info.is_writable()?.has_seeds(&[RIG, &authority.to_bytes()], &oil_api::ID)?;
-        let r = rig_info.as_account_mut::<Rig>(&oil_api::ID)?;
-        r.assert_mut(|r| r.authority == authority)?;
-        r
-    };
+        let miner = miner_info.as_account_mut::<Miner>(&oil_api::ID)?;
+        miner.initialize(authority);
+    }
+    
+    // Load miner for checkpoint validation
+    let miner = miner_info.as_account::<Miner>(&oil_api::ID)?;
     
     // Checkpoint requirement: Must checkpoint previous epoch before contributing to new epoch
     // Similar to block-based mining: if miner.round_id != round.id, must have checkpointed
-    if rig.current_epoch_id[well_id] != 0 && rig.current_epoch_id[well_id] < well.epoch_id {
-        assert!(rig.checkpointed_epoch_id[well_id] >= rig.current_epoch_id[well_id], "Miner has not checkpointed previous epoch");
+    if miner.current_epoch_id[well_id] != 0 && miner.current_epoch_id[well_id] < well.epoch_id {
+        assert!(miner.checkpointed_epoch_id[well_id] >= miner.current_epoch_id[well_id], "Miner has not checkpointed previous epoch");
     }
     
     // Create or load Share account
@@ -176,8 +174,9 @@ pub fn process_contribute_with_session<'a>(accounts: &'a [AccountInfo<'a>], data
         .checked_add(actual_amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;
     
-    // Update Rig current_epoch_id
-    rig.current_epoch_id[well_id] = well.epoch_id;
+    // Update Miner current_epoch_id
+    let miner_mut = miner_info.as_account_mut::<Miner>(&oil_api::ID)?;
+    miner_mut.current_epoch_id[well_id] = well.epoch_id;
     
     // Check if pool can bid now (immediate path)
     if well.current_bidder != POOL_ADDRESS && well.total_contributed >= bid_amount {

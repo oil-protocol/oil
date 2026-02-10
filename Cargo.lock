@@ -2060,6 +2060,7 @@ checksum = "3954d50fe15b02142bf25d3b8bdadb634ec3948f103d04ffe3031bc8fe9d7058"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
+ "serde",
 ]
 
 [[package]]
@@ -2613,7 +2614,7 @@ dependencies = [
 
 [[package]]
 name = "oil-api"
-version = "0.7.1"
+version = "0.7.3"
 dependencies = [
  "base64 0.22.1",
  "bytemuck",
@@ -3583,6 +3584,20 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "scripts-idl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "indexmap",
+ "quote",
+ "regex",
+ "serde",
+ "serde_json",
+ "syn 2.0.100",
+ "walkdir",
+]
 
 [[package]]
 name = "scroll"
